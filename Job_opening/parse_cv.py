@@ -1,7 +1,8 @@
-import sys
+# Job_opening/tasks.py
 import re
 import pdfplumber
-import os
+from celery import shared_task
+from .models import ApplicantResponse  # Import the model
 
 # Predefined list of technical keywords (expand as needed)
 TECHNICAL_KEYWORDS = {
@@ -22,10 +23,7 @@ TECHNICAL_KEYWORDS = {
     ]
 }
 
-# Combine all keywords into a single set for efficient lookup
-ALL_KEYWORDS = set(
-    sum(TECHNICAL_KEYWORDS.values(), [])
-)
+ALL_KEYWORDS = set(sum(TECHNICAL_KEYWORDS.values(), []))
 
 def extract_text_from_pdf(pdf_path):
     """Extract text from a PDF file using pdfplumber."""
@@ -42,15 +40,12 @@ def extract_text_from_pdf(pdf_path):
         return ""
 
 def extract_keywords(text):
-    """Extract technical keywords from text without section assumptions."""
+    """Extract technical keywords from text."""
     found_keywords = set()
     text_lower = text.lower()
-
-    # Use regex with word boundaries to match whole words
     for keyword in ALL_KEYWORDS:
         if re.search(r'\b' + re.escape(keyword.lower()) + r'\b', text_lower):
             found_keywords.add(keyword)
-
     return found_keywords
 
 def categorize_keywords(keywords):
@@ -68,36 +63,42 @@ def categorize_keywords(keywords):
                 break
     return categorized
 
-def parse_cv(cv_path):
-    """Parse a CV from the given file location and extract technical keywords."""
-    if not cv_path.endswith('.pdf'):
-        print("Error: Only PDF files are supported.")
-        return
+@shared_task
+def parse_cv_keywords(applicant_response_id):
+    """Parse the CV and save keywords to the ApplicantResponse model."""
+    try:
+        # Retrieve the ApplicantResponse instance
+        response = ApplicantResponse.objects.get(id=applicant_response_id)
+        cv_path = response.cv.path
 
-    if not os.path.exists(cv_path):
-        print(f"Error: File not found at {cv_path}")
-        return
+        # Extract text from the CV
+        cv_text = extract_text_from_pdf(cv_path)
+        if not cv_text:
+            print(f"No text extracted from CV at {cv_path}")
+            return None
 
-    print(f"\nParsing CV at: {cv_path}")
+        # Extract and categorize keywords
+        keywords = extract_keywords(cv_text)
+        if not keywords:
+            print(f"No technical keywords found in CV at {cv_path}")
+            response.cv_keywords = {}  # Save empty dict if no keywords
+            response.save(update_fields=['cv_keywords'])
+            return None
 
-    # Extract text from the CV
-    cv_text = extract_text_from_pdf(cv_path)
-    if not cv_text:
-        print("No text could be extracted from the CV.")
-        return
+        categorized_keywords = categorize_keywords(keywords)
+        print(f"\nKeywords extracted from CV at {cv_path}:")
+        for category, kw_list in categorized_keywords.items():
+            if kw_list:
+                print(f"  {category.replace('_', ' ').title()}: {', '.join(kw_list)}")
 
-    # Extract and categorize keywords
-    keywords = extract_keywords(cv_text)
-    if not keywords:
-        print("No technical keywords found in the CV.")
-        return
+        # Save the categorized keywords to the model
+        response.cv_keywords = categorized_keywords
+        response.save(update_fields=['cv_keywords'])
 
-    categorized_keywords = categorize_keywords(keywords)
-    print("\nExtracted Technical Keywords:")
-    for category, kw_list in categorized_keywords.items():
-        if kw_list:
-            print(f"  {category.replace('_', ' ').title()}: {', '.join(kw_list)}")
-
-if __name__ == "__main__":
-    cv_path = "Ranjan_Lamsal_cv.pdf"
-    parse_cv(cv_path)
+        return categorized_keywords  # Optional: return for debugging
+    except ApplicantResponse.DoesNotExist:
+        print(f"Error: ApplicantResponse with ID {applicant_response_id} not found")
+        return None
+    except Exception as e:
+        print(f"Error processing CV for applicant {applicant_response_id}: {str(e)}")
+        return None

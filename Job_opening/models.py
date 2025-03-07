@@ -7,10 +7,10 @@ from django.conf import settings
 
 def cv_upload_path(instance, filename):
     """Generate a structured path for CV uploads."""
-    # Job opening ID as the base directory
     job_dir = f"Job_{instance.job_opening_id}"
-    # Applicant ID as the filename (assuming ID is available at save time)
-    filename = f"cv_{instance.id or 'temp'}.pdf"  # Use 'temp' if ID isn’t set yet
+    # Use a unique filename based on UUID or a timestamp if ID isn’t available yet
+    applicant_id = instance.applicant_id or uuid.uuid4()  # Fallback to UUID if applicant_id isn’t set
+    filename = f"cv_{applicant_id}.pdf"
     return os.path.join('cvs', job_dir, filename)
 
 
@@ -53,24 +53,13 @@ class ApplicantResponse(models.Model):
     responses = models.JSONField()  # Custom form field responses
     cv = models.FileField(upload_to=cv_upload_path, null=True, blank=True)
     submitted_at = models.DateTimeField(auto_now_add=True)
+    cv_keywords = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Response for {self.job_opening.title} - {self.applicant_id}"
     
     def save(self, *args, **kwargs):
-        # If this is a new instance, save first to get an ID, then rename the file
-        if not self.id:
-            super().save(*args, **kwargs)  # Save to generate ID
-            if self.cv and 'temp' in self.cv.name:
-                old_path = self.cv.path
-                new_name = f"cv_{self.id}.pdf"
-                new_path = os.path.join(settings.MEDIA_ROOT, 'cvs', f"Job_{self.job_opening_id}", new_name)
-                os.makedirs(os.path.dirname(new_path), exist_ok=True)
-                os.rename(old_path, new_path)
-                self.cv.name = os.path.join('cvs', f"Job_{self.job_opening_id}", new_name)
-                super().save(update_fields=['cv'])  # Update the cv field
-        else:
-            super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
             
             
 class ArchivedJobOpening(models.Model):

@@ -3,7 +3,7 @@ import random
 from datetime import datetime
 from io import BytesIO
 import json
-
+from reportlab.pdfgen import canvas
 
 BASE_URL = "http://127.0.0.1:8000"
 SIGNUP_URL = f"{BASE_URL}/auth/signup/"
@@ -110,6 +110,56 @@ applicants = [
     {"email": "thomas.white@example.com", "name": "Thomas White", "gender": "male", "country": "Australia", "phone": "+61422345678"}
 ]
 
+# CV Content Pool
+SKILLS_POOL = [
+    "Python", "Java", "C++", "JavaScript", "Django", "Flask", "React", "Node.js", "SQL", "MongoDB",
+    "AWS", "Docker", "Kubernetes", "Jenkins", "Git", "Agile", "Scrum", "REST", "GraphQL", "Microservices",
+    "Tableau", "Power BI", "Machine Learning", "JIRA", "Bugzilla"
+]
+EXPERIENCE_POOL = [
+    "Software Developer at TechCorp, 3 years",
+    "Data Analyst at Insight Analytics, 2 years",
+    "QA Engineer at QualitySoft, 4 years",
+    "Product Manager at InnovateNow, 5 years",
+    "DevOps Engineer at CloudBase, 3 years"
+]
+EDUCATION_POOL = [
+    "B.S. in Computer Science",
+    "M.S. in Data Science",
+    "B.E. in Software Engineering",
+    "MBA",
+    "B.Tech in Information Technology"
+]
+
+def generate_cv_pdf(applicant_name, job_title):
+    """Generate a random CV PDF for an applicant."""
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer)
+    p.setFont("Helvetica", 12)
+    
+    # Header
+    p.drawString(100, 750, f"CV for {applicant_name}")
+    p.drawString(100, 730, f"Applying for: {job_title}")
+    
+    # Experience
+    experience = random.sample(EXPERIENCE_POOL, k=1)[0]
+    p.drawString(100, 700, "Experience:")
+    p.drawString(120, 680, experience)
+    
+    # Skills
+    skills = random.sample(SKILLS_POOL, k=random.randint(4, 8))
+    p.drawString(100, 650, "Skills:")
+    p.drawString(120, 630, ", ".join(skills))
+    
+    # Education
+    education = random.choice(EDUCATION_POOL)
+    p.drawString(100, 600, "Education:")
+    p.drawString(120, 580, education)
+    
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return buffer
 
 def populate_database():
     company_tokens = []
@@ -186,9 +236,9 @@ def populate_database():
                 elif field["field_type"] == "choice":
                     responses[field["question"]] = random.choice(field["options"])
 
-            # Create a dummy PDF CV
-            cv_content = BytesIO(f"Dummy CV for {applicant['name']}".encode("utf-8"))
-            cv_file = {"cv": ("cv.pdf", cv_content, "application/pdf")}
+            # Generate a random CV PDF
+            cv_buffer = generate_cv_pdf(applicant["name"], job_response["title"])
+            cv_file = {"cv": ("cv.pdf", cv_buffer, "application/pdf")}
 
             data = {
                 "email_address": applicant["email"],
@@ -201,9 +251,10 @@ def populate_database():
 
             response = requests.post(f"{APPLY_URL}{job_id}/", files=cv_file, data=data)
             if response.status_code == 201:
-                print(f"Added response with CV for {applicant['name']} to job ID {job_id} ({job_response['title']}).")
+                print(f"Added response with CV for {applicant['name']} to job ID {job_id} ({job_response['title']})")
             else:
-                print(f"Failed to add response for {applicant['name']} to job ID {job_id}: {response.text}")
+                print(f"Failed to add response for {applicant['name']} to job ID {job_id}")
+            cv_buffer.close()  # Clean up the buffer
 
 if __name__ == "__main__":
     populate_database()

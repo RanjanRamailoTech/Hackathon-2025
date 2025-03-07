@@ -41,10 +41,17 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_crontab',
     'call',
-    'Job_opening',
     'client_auth',
+    'Job_opening.apps.JobOpeningConfig',
     ]
 
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the broker
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Store task results (optional)
+CELERY_ACCEPT_CONTENT = ['json']  # Task serialization
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
 
 
 MIDDLEWARE = [
