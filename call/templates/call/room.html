@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room {{ room_key }}</title>
+</head>
+<body>
+    <video id="remoteVideo" autoplay playsinline style="width: 50%; border: 1px solid black;"></video>
+
+    <script>
+        const roomKey = "{{ room_key }}";
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        let socket = new WebSocket(`${protocol}${window.location.host}/ws/video/${roomKey}/`);
+        let localStream;
+        const remoteVideo = document.getElementById('remoteVideo');
+        let mediaRecorder;
+        let mediaSource;
+        let sourceBuffer;
+        const clientId = Math.random().toString(36).substring(2);
+        let otherClientConnected = false;
+        let chunkQueue = [];
+
+        function log(message, data = null) {
+            console.log(`[DEBUG] ${message}${data ? ': ' + JSON.stringify(data) : ''}`);
+        }
+
+        function connectWebSocket() {
+            socket.onopen = () => {
+                log("WebSocket opened");
+                setTimeout(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ type: 'ready', client_id: clientId }));
+                        log(`Sent ready message from ${clientId}`);
+                        startMediaRecorder();
+                        flushChunkQueue(); // Process any queued chunks
+                    } else {
+                        log("WebSocket not fully open, retrying...");
+                        setTimeout(connectWebSocket, 500);
+                    }
+                }, 1000);
+            };
+            socket.onerror = error => log("WebSocket error", error);
+            socket.onclose = () => {
+                log("WebSocket closed, reconnecting...");
+                stopMediaRecorder();
+                clearRemoteVideo();
+                setTimeout(() => {
+                    socket = new WebSocket(`${protocol}${window.location.host}/ws/video/${roomKey}/`);
+                    connectWebSocket();
+                }, 1000);
+            };
+
+            socket.onmessage = event => {
+                if (typeof event.data === 'string') {
+                    const data = JSON.parse(event.data);
+                    log("Control message received", data);
+                    if (data.type === 'client_update') {
+                        if (data.action === 'connect' && data.client_id !== clientId) {
+                            otherClientConnected = true;
+                            log(`Other client ${data.client_id} connected`);
+                            flushChunkQueue();
+                        } else if (data.action === 'disconnect' && data.client_id !== clientId) {
+                            otherClientConnected = false;
+                            log(`Other client ${data.client_id} disconnected`);
+                            clearRemoteVideo();
+                        }
+                    } else if (data.type === 'client_ready' && data.client_id !== clientId) {
+                        otherClientConnected = true;
+                        log(`Other client ${data.client_id} is ready`);
+                        flushChunkQueue();
+                    }
+                } else if (event.data instanceof Blob && otherClientConnected) {
+                    log("Video chunk received, size", event.data.size);
+                    handleVideoChunk(event.data);
+                }
+            };
+        }
+
+        function startMediaRecorder() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                log("Stopped existing MediaRecorder");
+            }
+            mediaRecorder = new MediaRecorder(localStream, { mimeType: 'video/webm;codecs=vp8,opus' });
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+                    log(`Sending video chunk from ${clientId}`, event.data.size);
+                    socket.send(event.data);
+                } else {
+                    log("WebSocket not open or no data to send");
+                }
+            };
+            mediaRecorder.onstart = () => log("MediaRecorder started");
+            mediaRecorder.onstop = () => log("MediaRecorder stopped");
+            mediaRecorder.onerror = error => log("MediaRecorder error", error);
+            mediaRecorder.start(500); // Send chunks every 500ms
+        }
+
+        function stopMediaRecorder() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        }
+
+        function handleVideoChunk(chunk) {
+            if (!mediaSource || mediaSource.readyState === 'closed') {
+                log("Creating new MediaSource");
+                mediaSource = new MediaSource();
+                remoteVideo.src = URL.createObjectURL(mediaSource);
+                mediaSource.onsourceopen = () => {
+                    log("MediaSource opened");
+                    try {
+                        sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs=vp8,opus');
+                        sourceBuffer.onerror = error => log("SourceBuffer error", error);
+                        sourceBuffer.onupdateend = () => {
+                            if (!sourceBuffer.updating && remoteVideo.buffered.length > 0) {
+                                remoteVideo.currentTime = remoteVideo.buffered.end(0) - 0.1; // Keep near live
+                            }
+                        };
+                        appendChunk(chunk);
+                        flushChunkQueue();
+                    } catch (error) {
+                        log("SourceBuffer creation error", error);
+                        clearRemoteVideo();
+                    }
+                };
+            } else if (sourceBuffer && !sourceBuffer.updating && mediaSource.readyState === 'open') {
+                appendChunk(chunk);
+            } else {
+                log("Queueing chunk; MediaSource not ready");
+                chunkQueue.push(chunk);
+            }
+        }
+
+        function appendChunk(chunk) {
+            chunk.arrayBuffer().then(buffer => {
+                try {
+                    sourceBuffer.appendBuffer(buffer);
+                    log("Chunk appended", buffer.byteLength);
+                    if (remoteVideo.paused) {
+                        playRemoteVideoWithRetry();
+                    }
+                } catch (error) {
+                    log("Append error, resetting MediaSource", error);
+                    clearRemoteVideo();
+                    handleVideoChunk(chunk); // Retry with new MediaSource
+                }
+            }).catch(error => log("Chunk conversion error", error));
+        }
+
+        function playRemoteVideoWithRetry(attempts = 3) {
+            remoteVideo.play()
+                .then(() => log("Remote video playing"))
+                .catch(error => {
+                    log("Remote video playback error", error.name + ": " + error.message);
+                    if (attempts > 0) {
+                        log(`Retrying playback (${attempts} attempts left)`);
+                        setTimeout(() => playRemoteVideoWithRetry(attempts - 1), 500);
+                    }
+                });
+        }
+
+        function flushChunkQueue() {
+            while (chunkQueue.length > 0 && mediaSource && mediaSource.readyState === 'open' && sourceBuffer && !sourceBuffer.updating) {
+                const chunk = chunkQueue.shift();
+                log("Flushing queued chunk", chunk.size);
+                appendChunk(chunk);
+            }
+        }
+
+        function clearRemoteVideo() {
+            if (mediaSource && mediaSource.readyState !== 'closed') {
+                try {
+                    mediaSource.endOfStream();
+                } catch (error) {
+                    log("Error ending MediaSource", error);
+                }
+            }
+            mediaSource = null;
+            sourceBuffer = null;
+            remoteVideo.src = '';
+            remoteVideo.pause();
+            chunkQueue = [];
+            log("Remote video cleared");
+        }
+
+        log("Requesting media devices");
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                log("getUserMedia success");
+                localStream = stream;
+                log("Local stream set", { videoTracks: stream.getVideoTracks().length, audioTracks: stream.getAudioTracks().length });
+                connectWebSocket();
+            })
+            .catch(error => {
+                log("getUserMedia failed", error);
+                alert("Camera/Mic error: " + error.message);
+            });
+    </script>
+</body>
+</html>
