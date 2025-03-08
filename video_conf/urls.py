@@ -20,8 +20,7 @@ from call import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.index, name='index'),
-    # path('room/', views.room, name='room'),
     path("auth/", include("client_auth.urls")),
     path("openings/", include("Job_opening.urls")),
+    path("interview/", include("call.urls")),
 ]

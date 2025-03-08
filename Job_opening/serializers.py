@@ -1,133 +1,121 @@
+# Job_opening/serializers.py
 from rest_framework import serializers
-from .models import Company, JobOpening, FormField, ApplicantResponse, ArchivedJobOpening
-import re
+from .models import JobOpening, ApplicantResponse
 import json
+import re
+import logging
+from django.urls import reverse
 
 
-class FormFieldSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FormField
-        fields = ["id", "question", "field_type", "is_required", "options"]
+logger = logging.getLogger(__name__)
+
 
 class JobOpeningSerializer(serializers.ModelSerializer):
-    form_fields = FormFieldSerializer(many=True)
-
     class Meta:
         model = JobOpening
-        fields = ["id", "title", "description", "form_url", "created_at","deadline", "form_fields"]
+        fields = [
+            "id", "title", "department", "location", "applicants", "status", "postedDate",
+            "description", "requirements", "jobType", "experienceLevel", "questions", "application_link", "benchmark"
+        ]
 
     def create(self, validated_data):
-        form_fields_data = validated_data.pop("form_fields")
+        # Create the JobOpening instance with all fields
         job_opening = JobOpening.objects.create(**validated_data)
-        for field_data in form_fields_data:
-            FormField.objects.create(job_opening=job_opening, **field_data)
-        # Generate form_url (e.g., using UUID or slug)
-        job_opening.form_url = f"/apply/{job_opening.id}/"
-        job_opening.save()
         return job_opening
-    
+
     def update(self, instance, validated_data):
-        # Update JobOpening fields
         instance.title = validated_data.get("title", instance.title)
+        instance.department = validated_data.get("department", instance.department)
+        instance.location = validated_data.get("location", instance.location)
+        instance.applicants = validated_data.get("applicants", instance.applicants)
+        instance.status = validated_data.get("status", instance.status)
+        instance.postedDate = validated_data.get("postedDate", instance.postedDate)
         instance.description = validated_data.get("description", instance.description)
-        instance.deadline = validated_data.get("deadline", instance.deadline)
+        instance.requirements = validated_data.get("requirements", instance.requirements)
+        instance.jobType = validated_data.get("jobType", instance.jobType)
+        instance.experienceLevel = validated_data.get("experienceLevel", instance.experienceLevel)
+        instance.questions = validated_data.get("questions", instance.questions)
         instance.save()
+        return instance
 
-        # Handle form_fields updates
-        if "form_fields" in validated_data:
-            form_fields_data = validated_data.pop("form_fields")
-            existing_fields = {field.id: field for field in instance.form_fields.all()}
-            updated_field_ids = {field["id"] for field in form_fields_data if "id" in field}
-
-            # Delete form fields not in the updated data
-            for field_id, field in existing_fields.items():
-                if field_id not in updated_field_ids:
-                    field.delete()
-
-            # Update or create form fields
-            for field_data in form_fields_data:
-                field_id = field_data.get("id")
-                if field_id and field_id in existing_fields:
-                    # Update existing field
-                    field = existing_fields[field_id]
-                    field.question = field_data.get("question", field.question)
-                    field.field_type = field_data.get("field_type", field.field_type)
-                    field.is_required = field_data.get("is_required", field.is_required)
-                    field.options = field_data.get("options", field.options)
-                    field.save()
-                else:
-                    # Create new field
-                    FormField.objects.create(job_opening=instance, **field_data)
-
+    def validate_questions(self, value):
+        """Ensure questions is a list of strings."""
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Questions must be a list.")
+        for question in value:
+            if not isinstance(question, str):
+                raise serializers.ValidationError("Each question must be a string.")
+        return value
+    
+    def create(self, validated_data):
+        instance = JobOpening.objects.create(**validated_data)
+        request = self.context.get('request')
+        if request:
+            apply_url = reverse('applicant-response-create', kwargs={'jobId': instance.id})
+            instance.application_link = request.build_absolute_uri(apply_url)
+            instance.save(update_fields=['application_link'])
+        logger.debug(f"Created JobOpening with application_link: {instance.application_link}")
         return instance
 
 class ApplicantResponseSerializer(serializers.ModelSerializer):
+    jobId = serializers.PrimaryKeyRelatedField(queryset=JobOpening.objects.all())
     class Meta:
         model = ApplicantResponse
-        fields = ["id", "job_opening", "email_address", "name", "gender", "country", "phone_number", "responses", "cv", "submitted_at"]
+        fields = [
+            "id", "jobId", "name", "role", "status", "score", "appliedFor",
+            "appliedDate", "resumeParseData", "cvKeywords", "email"
+        ]
+        read_only_fields = ["id", "cvKeywords"]  # cvKeywords is computed, not sent by frontend
 
-    def validate_responses(self, value):
-        # Handle case where value is a string (from form-data)
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)  # Parse JSON string to dict
-            except json.JSONDecodeError:
-                raise serializers.ValidationError("Responses must be a valid JSON object.")
-
-        # Ensure value is a dict
-        if not isinstance(value, dict):
-            raise serializers.ValidationError("Responses must be a dictionary.")
-
-        response_keys = set(value.keys())
-        job_opening = self.initial_data.get("job_opening")
-        try:
-            job = JobOpening.objects.get(id=job_opening)
-            form_fields = job.form_fields.all()
-            required_keys = {field.question for field in form_fields if field.is_required}
-            all_keys = {field.question for field in form_fields}
-
-            missing_keys = required_keys - response_keys
-            extra_keys = response_keys - all_keys
-
-            if missing_keys:
-                raise serializers.ValidationError(f"Missing required fields: {', '.join(missing_keys)}")
-            if extra_keys:
-                raise serializers.ValidationError(f"Unexpected fields: {', '.join(extra_keys)}")
-
-            # Validate response types match form field types
-            for field in form_fields:
-                question = field.question
-                if question in value:
-                    response = value[question]
-                    if field.field_type == "number":
-                        if not response.isdigit():
-                            raise serializers.ValidationError(f"'{question}' must be a number.")
-                    elif field.field_type == "text":
-                        if not isinstance(response, str):
-                            raise serializers.ValidationError(f"'{question}' must be a string.")
-                    elif field.field_type == "choice":
-                        if response not in field.options:
-                            raise serializers.ValidationError(f"'{question}' must be one of: {', '.join(field.options)}.")
-        except JobOpening.DoesNotExist:
-            raise serializers.ValidationError("Invalid job opening ID.")
+    def validate_jobId(self, value):
+        if not JobOpening.objects.filter(id=value.id).exists():
+            raise serializers.ValidationError("Invalid jobId: Job opening does not exist.")
         return value
     
-    def validate_gender(self, value):
-        """Ensure gender is either 'male' or 'female'."""
-        valid_genders = ["male", "female"]
-        if value not in valid_genders:
-            raise serializers.ValidationError(f"Gender must be one of: {', '.join(valid_genders)}.")
-        return value
+    def extract_keywords(self, parse_data):
+        if not parse_data or not isinstance(parse_data, dict):
+            return {}
+        text = " ".join([str(value) for value in parse_data.values()]).lower()
+        keywords = set()
+        technical_keywords = {
+            "programmingLanguages": ["python", "java", "javascript", "c++"],
+            "frameworksTools": ["django", "flask", "react", "node.js"],
+            "databases": ["postgresql", "mysql", "mongodb"],
+            "concepts": ["machine learning", "big data", "cloud computing"]
+        }
+        all_keywords = set(sum(technical_keywords.values(), []))
+        for keyword in all_keywords:
+            if re.search(r'\b' + re.escape(keyword) + r'\b', text):
+                keywords.add(keyword)
+        categorized_keywords = {cat: [kw for kw in kws if kw in keywords] for cat, kws in technical_keywords.items()}
+        return {k: v for k, v in categorized_keywords.items() if v}
+
+
+    def create(self, validated_data):
+        logger.debug(f"Validated data before processing: {validated_data}")
+        resumeParseData = validated_data.pop("resumeParseData", None)
+        
+        instance = ApplicantResponse.objects.create(**validated_data)
+        
+        if resumeParseData:
+            instance.resumeParseData = resumeParseData
+            instance.cvKeywords = self.extract_keywords(resumeParseData)
+            instance.save(update_fields=["resumeParseData", "cvKeywords"])
+        logger.debug(f"Created instance: {instance}")
+        return instance
     
-    def _is_valid_email(self, email):
-        """Simple email validation using regex."""
-        if not isinstance(email, str):
-            return False
-        email_pattern = re.compile(r"[^@]+@[^@]+\.[^@]+")
-        return bool(email_pattern.match(email))
+    def to_representation(self, instance):
+        # Exclude cvKeywords and resumeParseData in responses
+        ret = super().to_representation(instance)
+        ret.pop("cvKeywords", None)
+        ret.pop("resumeParseData", None)
+        return ret
     
-    
-class ArchivedJobOpeningSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ArchivedJobOpening
-        fields = ["id", "title", "description", "form_url", "created_at", "deadline", "archived_at"]
+
+# class ArchivedJobOpeningSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = ArchivedJobOpening
+#         fields = [
+#             "id", "title", "department", "location", "applicants", "status", "posted_date",
+#             "description", "requirements", "job_type", "experience_level", "questions", "archived_at"
+#         ]

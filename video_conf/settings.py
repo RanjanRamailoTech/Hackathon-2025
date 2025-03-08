@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'call',
     'client_auth',
     'Job_opening.apps.JobOpeningConfig',
+    'corsheaders',
     ]
 
 # Celery Configuration
@@ -57,6 +58,7 @@ CELERY_TIMEZONE = 'UTC'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -64,9 +66,29 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "origin",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
 ROOT_URLCONF = 'video_conf.urls'
 
 
+#needed is we decide to create an automated task at some time stamp like archiving the job that have expired
 CRONJOBS = [
     ("0 0 * * *", "Job_opening.views.archive_expired_jobs"),  # Runs daily at midnight UTC
 ]
@@ -99,7 +121,6 @@ CHANNEL_LAYERS = {
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -107,6 +128,15 @@ DATABASES = {
     }
 }
 
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -159,3 +189,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Use 'console.EmailBackend' for testing
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@gmail.com'  # Replace with your Gmail
+EMAIL_HOST_PASSWORD = 'your-app-password'  # Use an App Password if 2FA is enabled
+DEFAULT_FROM_EMAIL = 'your-email@gmail.com'

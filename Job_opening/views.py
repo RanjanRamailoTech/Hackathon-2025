@@ -1,20 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .models import JobOpening, ApplicantResponse, Company, ArchivedJobOpening
-from .serializers import JobOpeningSerializer, ApplicantResponseSerializer, ArchivedJobOpeningSerializer
-
+from .models import JobOpening, ApplicantResponse, Company
+from .serializers import JobOpeningSerializer, ApplicantResponseSerializer
+import logging
 from django.utils import timezone
 
-# Existing Views (unchanged for brevity)
+
 class JobOpeningListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         try:
             company = request.user.company
-            now = timezone.now()
-            job_openings = JobOpening.objects.filter(company=company, deadline__gt=now)
+            job_openings = JobOpening.objects.filter(company=company)
             serializer = JobOpeningSerializer(job_openings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Company.DoesNotExist:
@@ -26,14 +25,12 @@ class JobOpeningListCreateView(APIView):
             try:
                 company = request.user.company
                 serializer.save(company=company)
-                job_opening = JobOpening.objects.get(id=serializer.data["id"])
-                job_opening.form_url = f"/apply/{job_opening.id}/"
-                job_opening.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Company.DoesNotExist:
                 return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
+    
 class JobOpeningDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -67,92 +64,92 @@ class JobOpeningDetailView(APIView):
         except JobOpening.DoesNotExist:
             return Response({"error": "Job opening not found"}, status=status.HTTP_404_NOT_FOUND)
 
+logger = logging.getLogger(__name__)
+
 class ApplicantResponseCreateView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, job_id):
-        try:
-            job_opening = JobOpening.objects.get(id=job_id)
-        except JobOpening.DoesNotExist:
-            return Response({"error": "Job opening not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        now = timezone.now()
-        if job_opening.deadline <= now:
-            return Response({"error": "Cannot submit response: This job opening has expired."}, status=status.HTTP_400_BAD_REQUEST)
-        
+    def post(self, request, jobId):
         data = {
-            "job_opening": job_id,
-            "email_address": request.data.get("email_address"),
+            "jobId": jobId,
             "name": request.data.get("name"),
-            "gender": request.data.get("gender"),
-            "country": request.data.get("country"),
-            "phone_number": request.data.get("phone_number"),
-            "responses": request.data.get("responses", {}),
-            "cv": request.FILES.get("cv")
+            "role": request.data.get("role"),
+            "status": request.data.get("status"),
+            "score": request.data.get("score"),
+            "appliedFor": request.data.get("appliedFor"),
+            "appliedDate": request.data.get("appliedDate"),
+            "cv": request.FILES.get("cv"),
+            "resumeParseData": request.data.get("resumeParseData"),
+            "email": request.data.get("email")
         }
-        
+        logger.debug(f"Received data: {data}")
+
         serializer = ApplicantResponseSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        logger.error(f"Validation errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class JobOpeningResponsesListView(APIView):
+class ApplicantResponseListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, job_id):
+    def get(self, request, jobId):
         try:
             company = request.user.company
-            job_opening = JobOpening.objects.get(id=job_id, company=company)
-            responses = ApplicantResponse.objects.filter(job_opening=job_opening)
+            job_opening = JobOpening.objects.get(id=jobId, company=company)
+            responses = ApplicantResponse.objects.filter(jobId=job_opening)
             serializer = ApplicantResponseSerializer(responses, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except JobOpening.DoesNotExist:
             return Response({"error": "Job opening not found or not owned by this company"}, status=status.HTTP_404_NOT_FOUND)
-        
-class JobOpeningResponseDetailView(APIView):
+
+
+class ApplicantResponseDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, job_id, response_id):
+    def get(self, request, jobId, responseId):
         try:
             company = request.user.company
-            job_opening = JobOpening.objects.get(id=job_id, company=company)
-            response = ApplicantResponse.objects.get(id=response_id, job_opening=job_opening)
+            job_opening = JobOpening.objects.get(id=jobId, company=company)
+            response = ApplicantResponse.objects.get(id=responseId, jobId=job_opening)
             serializer = ApplicantResponseSerializer(response)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except JobOpening.DoesNotExist:
             return Response({"error": "Job opening not found or not owned by this company"}, status=status.HTTP_404_NOT_FOUND)
         except ApplicantResponse.DoesNotExist:
             return Response({"error": "Response not found for this job opening"}, status=status.HTTP_404_NOT_FOUND)
+        
+        
+# class ArchivedJobOpeningsListView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
 
-class ArchivedJobOpeningsListView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        try:
-            company = request.user.company
-            archived_jobs = ArchivedJobOpening.objects.filter(company=company)
-            serializer = ArchivedJobOpeningSerializer(archived_jobs, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Company.DoesNotExist:
-            return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
+#     def get(self, request):
+#         try:
+#             company = request.user.company
+#             archived_jobs = ArchivedJobOpening.objects.filter(company=company)
+#             serializer = ArchivedJobOpeningSerializer(archived_jobs, many=True)
+#             return Response(serializer.data, status=status.HTTP_200_OK)
+#         except Company.DoesNotExist:
+#             return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
         
 
-def archive_expired_jobs():
-    """Move expired job openings to ArchivedJobOpening table."""
-    now = timezone.now()
-    expired_jobs = JobOpening.objects.filter(deadline__lte=now)
-    for job in expired_jobs:
-        ArchivedJobOpening.objects.create(
-            company=job.company,
-            title=job.title,
-            description=job.description,
-            form_url=job.form_url,
-            created_at=job.created_at,
-            deadline=job.deadline
-        )
-        job.responses.all().delete()  # Delete responses (optional)
-        job.form_fields.all().delete()  # Delete form fields
-        job.delete()
+# def archive_expired_jobs():
+#     """Move expired job openings to ArchivedJobOpening table."""
+#     now = timezone.now()
+#     expired_jobs = JobOpening.objects.filter(deadline__lte=now)
+#     for job in expired_jobs:
+#         ArchivedJobOpening.objects.create(
+#             company=job.company,
+#             title=job.title,
+#             description=job.description,
+#             form_url=job.form_url,
+#             created_at=job.created_at,
+#             deadline=job.deadline
+#         )
+#         job.responses.all().delete()  # Delete responses (optional)
+#         job.form_fields.all().delete()  # Delete form fields
+#         job.delete()
         
