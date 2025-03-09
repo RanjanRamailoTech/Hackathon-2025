@@ -95,7 +95,7 @@ CORS_ALLOW_HEADERS = [
 ROOT_URLCONF = 'video_conf.urls'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Set to 60 minutes
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1)
 }
 
