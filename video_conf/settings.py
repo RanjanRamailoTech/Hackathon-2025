@@ -14,6 +14,7 @@ from pathlib import Path
 import environ
 import os
 from decouple import config
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -93,6 +94,10 @@ CORS_ALLOW_HEADERS = [
 
 ROOT_URLCONF = 'video_conf.urls'
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Set to 60 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1)
+}
 
 #needed is we decide to create an automated task at some time stamp like archiving the job that have expired
 CRONJOBS = [
@@ -127,12 +132,12 @@ CHANNEL_LAYERS = {
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 CHANNEL_LAYERS = {
@@ -196,6 +201,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='video_conf_db'),
+        'USER': config('DB_USER', default='video_conf_user'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+    }
+}
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Use 'console.EmailBackend' for testing
 EMAIL_HOST = 'smtp.gmail.com'
@@ -203,14 +219,3 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 OPEN_AI_KEY = config('OPEN_AI_KEY', default = '')
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME', default='ai_interview'),
-        'USER': env('DB_USER', default='suraj'),
-        'PASSWORD': env('DB_PASSWORD', default='ai_interview'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='5432'),
-    }
-}

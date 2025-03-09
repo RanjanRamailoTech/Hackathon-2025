@@ -62,7 +62,7 @@ class ApplicantResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = ApplicantResponse
         fields = [
-            "id", "jobId", "name", "role", "status", "score", "appliedFor",
+            "id", "jobId", "name", "role", "score", "appliedFor",
             "appliedDate", "resumeParseData", "cvKeywords", "email"
         ]
         read_only_fields = ["id", "cvKeywords"]  # cvKeywords is computed, not sent by frontend

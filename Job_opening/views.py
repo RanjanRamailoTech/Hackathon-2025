@@ -6,6 +6,7 @@ from .serializers import JobOpeningSerializer, ApplicantResponseSerializer
 import logging
 from django.utils import timezone
 from .tasks import send_application_email
+from call.models import Interview
 
 
 class JobOpeningListCreateView(APIView):
@@ -99,8 +100,10 @@ class ApplicantResponseCreateView(APIView):
             # )
             logger.info(f"Successfully created applicant response for jobId {jobId}")
             response_data = serializer.data
-            if 'interview_id' in data:
-                response_data['interview_id'] = data['interview_id']
+            print(data)
+            if data:
+                if 'interview_id' in data:
+                    response_data['interview_id'] = data['interview_id']
             return Response(response_data, status=status.HTTP_201_CREATED)
         
         logger.error(f"Validation errors: {serializer.errors}")
@@ -125,9 +128,12 @@ class ApplicantResponseCreateView(APIView):
 
         if score >= benchmark:
             instance.status = "In Progress"
+            logger.debug(f"Setting status to 'In Progress' for {applicant_name} (score={score} >= benchmark={benchmark})")
         else:
             instance.status = "Rejected"
+            logger.debug(f"Setting status to 'Rejected' for {applicant_name} (score={score} < benchmark={benchmark})")
         instance.save(update_fields=['status'])
+        
 
         # Get request host (assuming signal has access to request context; otherwise, pass via view)
         request_host = request.get_host() if request else "127.0.0.1:8000"  # Fallback
@@ -180,6 +186,53 @@ class JobOpeningQuestionsView(APIView):
         except Exception as e:
             logger.error(f"Error fetching questions for jobId {jobId}: {str(e)}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+class CompanyDashboardStatsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            company = request.user.company
+            # Number of jobs opened by the company
+            job_count = JobOpening.objects.filter(company=company).count()
+            
+            # Total number of candidates (responses) across all jobs
+            candidate_count = ApplicantResponse.objects.filter(jobId__company=company).count()
+            
+            # Total number of interviews in progress (ApplicantResponse with status="In Progress")
+            interviews_in_progress = ApplicantResponse.objects.filter(
+                jobId__company=company,
+                status="In Progress"
+            ).count()
+
+            return Response({
+                "job_openings": job_count,
+                "total_candidates": candidate_count,
+                "interviews_in_progress": interviews_in_progress
+            }, status=status.HTTP_200_OK)
+        except Company.DoesNotExist:
+            return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error fetching dashboard stats: {str(e)}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CompanyApplicantResponsesListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            company = request.user.company
+            responses = ApplicantResponse.objects.filter(jobId__company=company)
+            serializer = ApplicantResponseSerializer(responses, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Company.DoesNotExist:
+            return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error fetching company responses: {str(e)}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
         
 # class ArchivedJobOpeningsListView(APIView):
 #     permission_classes = [permissions.IsAuthenticated]
