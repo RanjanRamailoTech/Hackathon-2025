@@ -222,3 +222,4 @@ EMAIL_APP_PASSWORD = config('GMAIL_APP_PASS', default = '')
 
 
 OPEN_AI_KEY = config('OPEN_AI_KEY', default = '')
+FRONTEND_HOST= config('FRONTEND_HOST', default="http://localhost:5173")

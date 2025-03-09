@@ -154,7 +154,7 @@ class ApplicantResponseCreateView(APIView):
         # Get request host (assuming signal has access to request context; otherwise, pass via view)
         request_host = request.get_host() if request else "127.0.0.1:8000"  # Fallback
         
-        response_data = send_application_email(applicant_name, applicant_email, job_title, score, benchmark, applicant_id, request_host)
+        response_data = send_application_email(applicant_name, applicant_email, job_title, job.id, score, benchmark, applicant_id, request_host)
         return response_data
 
 
