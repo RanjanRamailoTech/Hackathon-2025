@@ -110,7 +110,8 @@ class ApplicantResponseSerializer(serializers.ModelSerializer):
         ret.pop("cvKeywords", None)
         ret.pop("resumeParseData", None)
         return ret
-    
+
+
 
 # class ArchivedJobOpeningSerializer(serializers.ModelSerializer):
 #     class Meta:

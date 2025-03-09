@@ -132,7 +132,22 @@ class ApplicantResponseDetailView(APIView):
             return Response({"error": "Job opening not found or not owned by this company"}, status=status.HTTP_404_NOT_FOUND)
         except ApplicantResponse.DoesNotExist:
             return Response({"error": "Response not found for this job opening"}, status=status.HTTP_404_NOT_FOUND)
-        
+    
+class JobOpeningQuestionsView(APIView):
+    permission_classes = [permissions.AllowAny]  # Allow unauthenticated access for candidates
+
+    def get(self, request, jobId):
+        try:
+            job_opening = JobOpening.objects.get(id=jobId)
+            questions = job_opening.questions  # JSONField containing the list of questions
+            if not questions or not isinstance(questions, list):
+                return Response({"questions": []}, status=status.HTTP_200_OK)  # Return empty list if no questions
+            return Response({"questions": questions}, status=status.HTTP_200_OK)
+        except JobOpening.DoesNotExist:
+            return Response({"error": "Job opening not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error fetching questions for jobId {jobId}: {str(e)}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 # class ArchivedJobOpeningsListView(APIView):
 #     permission_classes = [permissions.IsAuthenticated]
