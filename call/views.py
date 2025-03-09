@@ -17,6 +17,9 @@ from .services import(
     speech_to_text,
     calculate_candidate_score,
 )
+from .final_report_gen import(
+    generate_final_report,
+)
 
 class StartInterview(APIView):
     
@@ -97,20 +100,7 @@ class InterviewProcessingAPI(APIView):
         else:
             print(interview_serializer.errors)
             return Response({"error": "Failed to update the video list"}, status=status.HTTP_400_BAD_REQUEST)
-        # current_videos = interview.video_file or []
-        # current_videos.append(video_path)
-        # interview.video_file = current_videos
-        # interview.save(update_fields=['video_file'])
-        
-        try:
-                # # Check what type of data we're receiving
-                # if 'audio_data' in request.data:
-                #     # Handle audio processing
-                #     audio_data = request.data.get('audio_data')
-                #     text_response = self.process_audio(audio_data)
-                #     qa_pairs = self.extract_qa_pairs_from_audio(text_response)
-                #     return Response({'qa_pairs': qa_pairs}, status=status.HTTP_200_OK)
-                
+        try:    
                 if 'video_file' in request.FILES:
                     # Handle video processing
                     video_file = request.FILES['video_file']
@@ -124,21 +114,28 @@ class InterviewProcessingAPI(APIView):
                     try:
                         # Process the video file
                         audio_text = extract_audio_and_process(temp_video_file.name)
-                        # qa_pairs = self.extract_qa_pairs_from_audio(question + audio_text)
-                        
-                        # Optional: Calculate score if requested
-                        if request.data.get('calculate_score', True):
-                            score = calculate_candidate_score(job_description, question, audio_text)
+                        score = calculate_candidate_score(job_description, question, audio_text)
+                        try:
+                            evaluation_result = EvaluationResult.objects.get(interview=interview)
+                        except ObjectDoesNotExist:
+                            # If it does not exist, create a new instance
+                            evaluation_result = EvaluationResult.objects.create(interview=interview, verbal_scores={}, non_verbal_scores={}, final_report="")
+                        finally:
+                            existing_scores = evaluation_result.verbal_scores
+                            existing_scores[question] = score.get("evaluation",0)
+                            evaluation_result.verbal_scores = existing_scores
+                            evaluation_result.save()
+                        print("Final flag: ",request.data.get('final_flag'))
+                        if request.data.get('final_flag', False):
                             try:
                                 evaluation_result = EvaluationResult.objects.get(interview=interview)
-                            except ObjectDoesNotExist:
-                                # If it does not exist, create a new instance
-                                evaluation_result = EvaluationResult.objects.create(interview=interview, verbal_scores={}, non_verbal_scores={}, final_report="")
-                            finally:
-                                existing_scores = evaluation_result.verbal_scores
-                                existing_scores[question] = score.get("evaluation",0)
-                                evaluation_result.verbal_scores = existing_scores
+                                final_report = generate_final_report(evaluation_result,job_description)
+                                evaluation_result.final_report = final_report
                                 evaluation_result.save()
+                            except ObjectDoesNotExist:
+                                return Response({"error":"Cannot generate report on empty records"}, status=status.HTTP_400_BAD_REQUEST)
+                            except Exception as e:
+                                print(f"An error occurred while generating the final report: {e}")
                         # Return the extracted QA pairs
                         return Response({"message":"Video processed successfully"
                             }, status=status.HTTP_200_OK)
