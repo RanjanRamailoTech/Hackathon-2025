@@ -14,8 +14,7 @@ def main():
     commands = [
         "sudo apt-get install -y portaudio19-dev python3-pyaudio",
         "pip install -r requirements.txt",
-        "python3 manage.py migrate",
-        "python3 manage.py runserver"
+        "python3 manage.py migrate"
     ]
 
     for command in commands:
