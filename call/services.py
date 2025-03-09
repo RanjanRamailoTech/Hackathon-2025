@@ -41,7 +41,7 @@ def extract_audio_and_process(video_path):
                 return "Error extracting audio"
 
             # Process the extracted audio for speech-to-text (STT)
-            audio_text = self.speech_to_text(temp_audio_path)
+            audio_text = speech_to_text(temp_audio_path)
             print(f"Transcribed audio text: {audio_text}")
             return audio_text
 

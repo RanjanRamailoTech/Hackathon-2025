@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Interview, EvaluationResult
-from .serializers import InterviewSerializer
+from .serializers import InterviewSerializer, EvaluationResultSerializer
 from rest_framework import status
 import tempfile
 import os
@@ -9,7 +9,7 @@ from django.conf import settings
 from rest_framework import permissions
 from .serializers import InterviewSerializer
 import time
-from Job_opening.models import JobOpening
+from Job_opening.models import JobOpening, ApplicantResponse
 from Job_opening.serializers import JobDescriptionSerializer
 from django.core.exceptions import ObjectDoesNotExist
 from .services import(
@@ -196,4 +196,17 @@ class InterviewProcessingAPI(APIView):
     #         if os.path.exists(temp_audio_path):
     #             os.remove(temp_audio_path)
     #             print(f"Deleted temporary audio file: {temp_audio_path}")
-    
+
+class InterviewReport(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, applicant_response_id):
+        if not applicant_response_id:
+            return Response({"error":"Job ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+        candidate = ApplicantResponse.objects.filter(id=applicant_response_id).first()
+        if not candidate:
+            return Response({"error":"Candidate application doesn't exist"}, status=status.HTTP_400_BAD_REQUEST)
+        interview = Interview.objects.filter(applicant_job_pipeline_id=applicant_response_id).first()
+        report = EvaluationResult.objects.filter(interview=interview).first()
+        return Response({"data":EvaluationResultSerializer(report).data},status=status.HTTP_200_OK)
+        
