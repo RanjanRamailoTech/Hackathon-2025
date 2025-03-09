@@ -203,3 +203,14 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 OPEN_AI_KEY = config('OPEN_AI_KEY', default = '')
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME', default='ai_interview'),
+        'USER': env('DB_USER', default='suraj'),
+        'PASSWORD': env('DB_PASSWORD', default='ai_interview'),
+        'HOST': env('DB_HOST', default='localhost'),
+        'PORT': env('DB_PORT', default='5432'),
+    }
+}

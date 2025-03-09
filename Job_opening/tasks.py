@@ -1,5 +1,4 @@
 # Job_opening/tasks.py
-from celery import shared_task
 from .utils import Util  # Adjust import based on your structure
 import logging
 from call.models import Interview
@@ -7,12 +6,11 @@ from call.models import Interview
 
 logger = logging.getLogger(__name__)
 
-@shared_task
 def send_application_email(applicant_name, applicant_email, job_title, score, benchmark, applicant_id, request_host):
     if not applicant_email or not isinstance(applicant_email, str):
         logger.error(f"Invalid email address for {applicant_name}: {applicant_email}")
         return
-
+    interview_id = None
     if score >= benchmark:
         subject = f"Acceptance: Application for {job_title}"
         
@@ -21,7 +19,7 @@ def send_application_email(applicant_name, applicant_email, job_title, score, be
             applicant_job_pipeline_id_id=applicant_id,  # applicant_id from ApplicantResponse
             status="Pending",
         )
-        
+        interview_id = interview.id
         # Generate interview URL
         interview_url = f"http://{request_host}/call/start-interview/?interview_id={interview.id}"
         
@@ -32,7 +30,6 @@ def send_application_email(applicant_name, applicant_email, job_title, score, be
             f"has been accepted. \n\n"
             f"Please proceed with your interview by clicking the following link:\n"
             f"{interview_url}\n\n"
-            f"Your interview ID is: {interview.id}. Please keep this for your records.\n\n"
             f"Best regards,\nThe Hiring Team"
         )
         
@@ -43,8 +40,8 @@ def send_application_email(applicant_name, applicant_email, job_title, score, be
         subject = f"Rejection: Application for {job_title}"
         message = (
             f"Dear {applicant_name},\n\n"
-            f"Thank you for applying for the {job_title} position. Unfortunately, your score of {score} "
-            f"did not meet our benchmark of {benchmark}, and we will not be moving forward with your application.\n\n"
+            f"Thank you for applying for the {job_title} position. Unfortunately, your profile "
+            f"was not well aligned for this job, and we will not be moving forward with your application.\n\n"
             f"We appreciate your interest and wish you the best in your job search.\n\n"
             f"Best regards,\nThe Hiring Team"
         )
@@ -58,5 +55,6 @@ def send_application_email(applicant_name, applicant_email, job_title, score, be
     try:
         Util.send_email(email_data)
         logger.info(f"Email sent to {applicant_email} for {job_title}: {subject}")
+        return {"interview_id":interview_id} if interview_id else None
     except Exception as e:
         logger.error(f"Failed to send email to {applicant_email}: {str(e)}")

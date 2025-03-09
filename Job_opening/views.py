@@ -5,7 +5,7 @@ from .models import JobOpening, ApplicantResponse, Company
 from .serializers import JobOpeningSerializer, ApplicantResponseSerializer
 import logging
 from django.utils import timezone
-from django.db.models.signals import post_save
+from .tasks import send_application_email
 
 
 class JobOpeningListCreateView(APIView):
@@ -88,20 +88,52 @@ class ApplicantResponseCreateView(APIView):
         serializer = ApplicantResponseSerializer(data=data)
         if serializer.is_valid():
             instance = serializer.save()
-            
-            # Manually trigger signal with request context
-            post_save.send(
-                sender=ApplicantResponse,
-                instance=instance,
-                created=True,
-                request=request  # Pass request to signal
-            )
+            data = self.candidate_selection(request,instance)
+            # The save signal is automatically triggered whenever the data is saved in the postgres database. So, we don't need to manually trigger it
+            # # Manually trigger signal with request context
+            # post_save.send(
+            #     sender=ApplicantResponse,
+            #     instance=instance,
+            #     created=True,
+            #     request=request  # Pass request to signal
+            # )
             logger.info(f"Successfully created applicant response for jobId {jobId}")
-            
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            response_data = serializer.data
+            if 'interview_id' in data:
+                response_data['interview_id'] = data['interview_id']
+            return Response(response_data, status=status.HTTP_201_CREATED)
         
         logger.error(f"Validation errors: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def candidate_selection(self,request, instance):
+        job = instance.jobId
+        applicant_email = instance.email
+        applicant_name = instance.name
+        job_title = job.title
+        benchmark = job.benchmark
+        score = instance.score
+        applicant_id = instance.id
+
+        logger.debug(f"Preparing email for {applicant_name} at {applicant_email}")
+
+        if not applicant_email or not isinstance(applicant_email, str):
+            logger.error(f"Invalid email address for {applicant_name}: {applicant_email}")
+            instance.status = "New"
+            instance.save(update_fields=['status'])
+            return
+
+        if score >= benchmark:
+            instance.status = "In Progress"
+        else:
+            instance.status = "Rejected"
+        instance.save(update_fields=['status'])
+
+        # Get request host (assuming signal has access to request context; otherwise, pass via view)
+        request_host = request.get_host() if request else "127.0.0.1:8000"  # Fallback
+        
+        response_data = send_application_email(applicant_name, applicant_email, job_title, score, benchmark, applicant_id, request_host)
+        return response_data
 
 
 class ApplicantResponseListView(APIView):

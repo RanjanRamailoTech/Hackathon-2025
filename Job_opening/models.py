@@ -60,7 +60,7 @@ class ApplicantResponse(models.Model):
         choices=(("New", "New"), ("In Progress", "In Progress"), ("Rejected", "Rejected"), ("Hired", "Hired")),
         default="New"
     )
-    score = models.IntegerField(default=0)
+    score = models.IntegerField(default=0,null=True,blank=True)
     appliedFor = models.CharField(max_length=255)  # e.g., "Backend Engineer"
     appliedDate = models.DateField()
     cvKeywords = models.JSONField(null=True, blank=True)  # Parsed from resumeParseData
