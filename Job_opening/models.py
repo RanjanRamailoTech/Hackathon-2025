@@ -25,7 +25,7 @@ class JobOpening(models.Model):
         choices=(("Active", "Active"), ("Pending", "Pending"), ("Archived", "Archived")),
         default="Pending"
     )
-    postedDate = models.DateField(blank=True, null=True)
+    postedDate = models.DateField(auto_now_add=True)
     description = models.TextField(blank=True, null=True)
     requirements = models.TextField(blank=True, null=True)
     jobType = models.CharField(max_length=20,blank=True,null=True)

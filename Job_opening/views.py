@@ -15,7 +15,7 @@ class JobOpeningListCreateView(APIView):
     def get(self, request):
         try:
             company = request.user.company
-            job_openings = JobOpening.objects.filter(company=company)
+            job_openings = JobOpening.objects.filter(company=company).order_by('-postedDate')
             serializer = JobOpeningSerializer(job_openings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Company.DoesNotExist:

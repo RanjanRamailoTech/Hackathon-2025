@@ -17,6 +17,7 @@ class JobOpeningSerializer(serializers.ModelSerializer):
             "id", "title", "department", "location", "applicants", "status", "postedDate",
             "description", "requirements", "jobType", "experienceLevel", "questions", "application_link", "benchmark"
         ]
+        read_only_fields = ["postedDate", "application_link"]
 
     def update(self, instance, validated_data):
         instance.title = validated_data.get("title", instance.title)
@@ -24,7 +25,6 @@ class JobOpeningSerializer(serializers.ModelSerializer):
         instance.location = validated_data.get("location", instance.location)
         instance.applicants = validated_data.get("applicants", instance.applicants)
         instance.status = validated_data.get("status", instance.status)
-        instance.postedDate = validated_data.get("postedDate", instance.postedDate)
         instance.description = validated_data.get("description", instance.description)
         instance.requirements = validated_data.get("requirements", instance.requirements)
         instance.jobType = validated_data.get("jobType", instance.jobType)
@@ -43,6 +43,7 @@ class JobOpeningSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
+        validated_data.pop('postedDate', None)
         instance = JobOpening.objects.create(**validated_data)
         request = self.context.get('request')
         if request:
