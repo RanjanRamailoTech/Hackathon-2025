@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Interview
+from .models import Interview, EvaluationResult
 from .serializers import InterviewSerializer
 from rest_framework import status
 import tempfile
@@ -12,6 +12,9 @@ from django.conf import settings
 from rest_framework import permissions
 from .serializers import InterviewSerializer
 import time
+from Job_opening.models import JobOpening
+from Job_opening.serializers import JobDescriptionSerializer
+from django.core.exceptions import ObjectDoesNotExist
 
 class StartInterview(APIView):
     
@@ -57,7 +60,14 @@ class InterviewProcessingAPI(APIView):
 
         if 'video_file' not in request.FILES:
             return Response({"error": "video_file is required"}, status=status.HTTP_400_BAD_REQUEST)
-
+        question = request.data.get('question',None)
+        if not question:
+            return Response({"error":"Question is required"}, status=status.HTTP_400_BAD_REQUEST)
+        applicant_response = interview.applicant_job_pipeline_id  # This gets the ApplicantResponse object
+        job_opening = applicant_response.jobId
+        if question not in job_opening.questions:
+            return Response({"error":"Question doesn't exist"}, status=status.HTTP_400_BAD_REQUEST)
+        job_description = JobDescriptionSerializer(job_opening).data
         video_file = request.FILES['video_file']
         
         # Define storage directory
@@ -112,18 +122,24 @@ class InterviewProcessingAPI(APIView):
                     try:
                         # Process the video file
                         audio_text = self.extract_audio_and_process(temp_video_file.name)
-                        qa_pairs = self.extract_qa_pairs_from_audio(audio_text)
+                        # qa_pairs = self.extract_qa_pairs_from_audio(question + audio_text)
                         
                         # Optional: Calculate score if requested
-                        if request.data.get('calculate_score', False):
-                            score = self.calculate_candidate_score(qa_pairs)
-                            return Response({
-                                'qa_pairs': qa_pairs,
-                                'candidate_score': score
-                            }, status=status.HTTP_200_OK)
-                        
+                        if request.data.get('calculate_score', True):
+                            score = self.calculate_candidate_score(job_description, question, audio_text)
+                            try:
+                                evaluation_result = EvaluationResult.objects.get(interview=interview)
+                            except ObjectDoesNotExist:
+                                # If it does not exist, create a new instance
+                                evaluation_result = EvaluationResult.objects.create(interview=interview, verbal_scores={}, non_verbal_scores={}, final_report="")
+                            finally:
+                                existing_scores = evaluation_result.verbal_scores
+                                existing_scores[question] = score.get("evaluation",0)
+                                evaluation_result.verbal_scores = existing_scores
+                                evaluation_result.save()
                         # Return the extracted QA pairs
-                        return Response({'qa_pairs': qa_pairs}, status=status.HTTP_200_OK)
+                        return Response({"message":"Video processed successfully"
+                            }, status=status.HTTP_200_OK)
                     
                     finally:
                         # Clean up the temporary file
@@ -269,87 +285,87 @@ class InterviewProcessingAPI(APIView):
             print(f"Error during transcription: {e}")
             return f"Transcription failed: {str(e)}"
     
-    def extract_qa_pairs_from_audio(self, audio_text):
-        """
-        Uses OpenAI's GPT model to extract question-answer pairs from audio_text.
+    # def extract_qa_pairs_from_audio(self, audio_text):
+    #     """
+    #     Uses OpenAI's GPT model to extract question-answer pairs from audio_text.
         
-        Args:
-            audio_text: Transcribed text from the interview
+    #     Args:
+    #         audio_text: Transcribed text from the interview
             
-        Returns:
-            Structured QA pairs extracted from the transcription
-        """
-        client = openai.OpenAI(api_key=settings.OPEN_AI_KEY)
+    #     Returns:
+    #         Structured QA pairs extracted from the transcription
+    #     """
+    #     client = openai.OpenAI(api_key=settings.OPEN_AI_KEY)
         
-        prompt = (
-            "Convert the following interview transcript into a structured JSON format with an array of objects. "
-            "Each object should have 'interviewer' and 'candidate' fields. "
-            "Identify when the interviewer is asking questions and when the candidate is responding. "
-            "The output must be valid JSON that can be parsed. Do not include any explanations or text outside the JSON array. "
-            "Format example: [{\"interviewer\": \"question here\", \"candidate\": \"answer here\"}]"
-            f"\n\n{audio_text}"
-        )
+    #     prompt = (
+    #         "Convert the following interview transcript into a structured JSON format with an array of objects. "
+    #         "Each object should have 'interviewer' and 'candidate' fields. "
+    #         "Identify when the interviewer is asking questions and when the candidate is responding. "
+    #         "The output must be valid JSON that can be parsed. Do not include any explanations or text outside the JSON array. "
+    #         "Format example: [{\"interviewer\": \"question here\", \"candidate\": \"answer here\"}]"
+    #         f"\n\n{audio_text}"
+    #     )
         
-        try:
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a helpful assistant that specializes in structuring interview transcripts into QA pairs. Always return valid, parseable JSON."
-                    },
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
-                ]
-            )
+    #     try:
+    #         response = client.chat.completions.create(
+    #             model="gpt-3.5-turbo",
+    #             messages=[
+    #                 {
+    #                     "role": "system", 
+    #                     "content": "You are a helpful assistant that specializes in structuring interview transcripts into QA pairs. Always return valid, parseable JSON."
+    #                 },
+    #                 {
+    #                     "role": "user", 
+    #                     "content": prompt
+    #                 }
+    #             ]
+    #         )
             
-            if isinstance(response.choices, list):
-                qa_pairs_response = response.choices[0].message.content
-            else:
-                qa_pairs_response = response.choices.message.content
+    #         if isinstance(response.choices, list):
+    #             qa_pairs_response = response.choices[0].message.content
+    #         else:
+    #             qa_pairs_response = response.choices.message.content
             
-            print(f"Extracted QA Pairs Response: {qa_pairs_response}")
+    #         print(f"Extracted QA Pairs Response: {qa_pairs_response}")
             
-            # Clean up the response to handle potential formatting issues
-            qa_pairs_response = qa_pairs_response.strip()
+    #         # Clean up the response to handle potential formatting issues
+    #         qa_pairs_response = qa_pairs_response.strip()
             
-            # If response starts with ```json and ends with ```, remove these markers
-            if qa_pairs_response.startswith("```json") and qa_pairs_response.endswith("```"):
-                qa_pairs_response = qa_pairs_response[7:-3].strip()
-            elif qa_pairs_response.startswith("```") and qa_pairs_response.endswith("```"):
-                qa_pairs_response = qa_pairs_response[3:-3].strip()
+    #         # If response starts with ```json and ends with ```, remove these markers
+    #         if qa_pairs_response.startswith("```json") and qa_pairs_response.endswith("```"):
+    #             qa_pairs_response = qa_pairs_response[7:-3].strip()
+    #         elif qa_pairs_response.startswith("```") and qa_pairs_response.endswith("```"):
+    #             qa_pairs_response = qa_pairs_response[3:-3].strip()
             
-            # Try to parse the JSON
-            try:
-                qa_pairs = json.loads(qa_pairs_response)
-                return qa_pairs
-            except json.JSONDecodeError as e:
-                print(f"Error parsing JSON response: {e}")
-                print(f"Raw response: {qa_pairs_response}")
+    #         # Try to parse the JSON
+    #         try:
+    #             qa_pairs = json.loads(qa_pairs_response)
+    #             return qa_pairs
+    #         except json.JSONDecodeError as e:
+    #             print(f"Error parsing JSON response: {e}")
+    #             print(f"Raw response: {qa_pairs_response}")
                 
-                # Fallback: Try to extract JSON if it's embedded in text
-                import re
-                json_pattern = r'\[\s*\{.*\}\s*\]'
-                json_match = re.search(json_pattern, qa_pairs_response, re.DOTALL)
+    #             # Fallback: Try to extract JSON if it's embedded in text
+    #             import re
+    #             json_pattern = r'\[\s*\{.*\}\s*\]'
+    #             json_match = re.search(json_pattern, qa_pairs_response, re.DOTALL)
                 
-                if json_match:
-                    try:
-                        extracted_json = json_match.group(0)
-                        qa_pairs = json.loads(extracted_json)
-                        return qa_pairs
-                    except json.JSONDecodeError:
-                        pass
+    #             if json_match:
+    #                 try:
+    #                     extracted_json = json_match.group(0)
+    #                     qa_pairs = json.loads(extracted_json)
+    #                     return qa_pairs
+    #                 except json.JSONDecodeError:
+    #                     pass
                 
-                # If all parsing attempts fail, return a structured error with default empty array
-                return [{"error": "Failed to parse QA pairs", "raw_response": qa_pairs_response}]
+    #             # If all parsing attempts fail, return a structured error with default empty array
+    #             return [{"error": "Failed to parse QA pairs", "raw_response": qa_pairs_response}]
             
-        except Exception as e:
-            print(f"Error during QA extraction: {e}")
-            return [{"error": f"QA extraction failed: {str(e)}"}]
+    #     except Exception as e:
+    #         print(f"Error during QA extraction: {e}")
+    #         return [{"error": f"QA extraction failed: {str(e)}"}]
     
-    def calculate_candidate_score(self, qa_pairs):
+    def calculate_candidate_score(self, job_description, question, answer):
         """
         Calculate a candidate score based on the interview QA pairs.
         
@@ -361,15 +377,23 @@ class InterviewProcessingAPI(APIView):
         """
         client = openai.OpenAI(api_key=settings.OPEN_AI_KEY)
         
-        # Convert QA pairs to a string format for the prompt
-        qa_formatted = json.dumps(qa_pairs, indent=2)
-        
         prompt = (
-            "You are an expert hiring manager. Analyze the following interview transcript and evaluate the candidate. "
-            "Consider factors such as technical knowledge, communication skills, problem-solving ability, and cultural fit. "
-            "Provide an overall score from 0-100 and brief justification."
-            f"\n\nInterview transcript:\n{qa_formatted}"
+            "Act as expert QA hiring analyst. Analyze ONLY the candidate's answer in relation to: "
+            f"1. Job requirements: {job_description}\n"
+            f"2. Interview question: '{question}'\n"
+            f"3. Candidate response: '{answer}'\n\n"
+            
+            "Evaluation Criteria:\n"
+            "- Relevance to job requirements (30% weight)\n"
+            "- Technical accuracy for QA roles (25% weight)\n" 
+            "- Problem-solving approach (20% weight)\n"
+            "- Communication clarity (15% weight)\n"
+            "- Alignment with QA best practices (10% weight)\n\n"
+            
+            "Output format: Only return numerical score between 0-10 (1 decimal allowed) "
+            "based on weighted criteria. No explanations. Example: 7.5"
         )
+
         
         try:
             response = client.chat.completions.create(

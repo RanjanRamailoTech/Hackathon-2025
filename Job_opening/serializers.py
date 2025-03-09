@@ -111,7 +111,12 @@ class ApplicantResponseSerializer(serializers.ModelSerializer):
         ret.pop("resumeParseData", None)
         return ret
 
-
+class JobDescriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOpening
+        fields = [
+            "title", "department", "location", "description", "requirements", "jobType", "experienceLevel"
+        ]
 
 # class ArchivedJobOpeningSerializer(serializers.ModelSerializer):
 #     class Meta:
