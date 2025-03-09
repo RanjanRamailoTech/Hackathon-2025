@@ -21,6 +21,6 @@ class Interview(models.Model):
 
 class EvaluationResult(models.Model):
     interview = models.OneToOneField(Interview, on_delete=models.CASCADE)
-    verbal_scores = models.JSONField()
-    non_verbal_scores = models.JSONField()
+    verbal_scores = models.JSONField(default=dict)
+    non_verbal_scores = models.JSONField(default=dict)
     final_report = models.TextField()
