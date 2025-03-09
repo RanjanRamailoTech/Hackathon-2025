@@ -140,7 +140,6 @@ class InterviewProcessingAPI(APIView):
                         # Return the extracted QA pairs
                         return Response({"message":"Video processed successfully"
                             }, status=status.HTTP_200_OK)
-                    
                     finally:
                         # Clean up the temporary file
                         if os.path.exists(temp_video_file.name):
