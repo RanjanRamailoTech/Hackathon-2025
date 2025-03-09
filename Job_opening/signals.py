@@ -16,6 +16,7 @@ def send_application_response_email(sender, instance, created, **kwargs):
         job_title = job.title
         benchmark = job.benchmark
         score = instance.score
+        applicant_id = instance.id
 
         logger.debug(f"Preparing email for {applicant_name} at {applicant_email}")
 
@@ -31,6 +32,10 @@ def send_application_response_email(sender, instance, created, **kwargs):
             instance.status = "Rejected"
         instance.save(update_fields=['status'])
 
+        # Get request host (assuming signal has access to request context; otherwise, pass via view)
+        request = kwargs.get('request', None)  # This won't work directly in signals; we'll fix via view
+        request_host = request.get_host() if request else "127.0.0.1:8000"  # Fallback
+        
         # Trigger Celery task
-        send_application_email.delay(applicant_name, applicant_email, job_title, score, benchmark)
+        send_application_email.delay(applicant_name, applicant_email, job_title, score, benchmark, applicant_id, request_host)
         logger.debug(f"Queued email task for {applicant_email}")

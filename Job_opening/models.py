@@ -48,6 +48,8 @@ class JobOpening(models.Model):
         return f"{self.title} - {self.company.name}"
 
 
+#hashlib for resume parsing
+
 class ApplicantResponse(models.Model):
     jobId = models.ForeignKey(JobOpening, on_delete=models.CASCADE, related_name="responses")
     applicantId = models.UUIDField(default=uuid.uuid4, editable=False)

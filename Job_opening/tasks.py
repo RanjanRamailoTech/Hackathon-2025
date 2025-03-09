@@ -2,24 +2,43 @@
 from celery import shared_task
 from .utils import Util  # Adjust import based on your structure
 import logging
+from call.models import Interview
+
 
 logger = logging.getLogger(__name__)
 
 @shared_task
-def send_application_email(applicant_name, applicant_email, job_title, score, benchmark):
+def send_application_email(applicant_name, applicant_email, job_title, score, benchmark, applicant_id, request_host):
     if not applicant_email or not isinstance(applicant_email, str):
         logger.error(f"Invalid email address for {applicant_name}: {applicant_email}")
         return
 
     if score >= benchmark:
         subject = f"Acceptance: Application for {job_title}"
+        
+                # Create Interview instance
+        interview = Interview.objects.create(
+            applicant_job_pipeline_id_id=applicant_id,  # applicant_id from ApplicantResponse
+            status="Pending",
+        )
+        
+        # Generate interview URL
+        interview_url = f"http://{request_host}/call/start-interview/?interview_id={interview.id}"
+        
+        
         message = (
             f"Dear {applicant_name},\n\n"
             f"Congratulations! We are pleased to inform you that your application for the {job_title} position "
-            f"has been accepted. Your score of {score} meets or exceeds our benchmark of {benchmark}.\n\n"
-            f"We will contact you soon with next steps.\n\n"
+            f"has been accepted. \n\n"
+            f"Please proceed with your interview by clicking the following link:\n"
+            f"{interview_url}\n\n"
+            f"Your interview ID is: {interview.id}. Please keep this for your records.\n\n"
             f"Best regards,\nThe Hiring Team"
         )
+        
+            
+
+        
     else:
         subject = f"Rejection: Application for {job_title}"
         message = (
@@ -35,6 +54,7 @@ def send_application_email(applicant_name, applicant_email, job_title, score, be
         'email_body': message,
         'to_email': applicant_email
     }
+
     try:
         Util.send_email(email_data)
         logger.info(f"Email sent to {applicant_email} for {job_title}: {subject}")

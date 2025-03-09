@@ -10,5 +10,5 @@ from .views import (
 urlpatterns = [
     ### Candidate login via linkedin
     path('start-interview/', StartInterview.as_view(), name='start-interview'),
-    path('interview/process/', InterviewProcessingAPI.as_view(), name='interview_process'),
+    path('process/', InterviewProcessingAPI.as_view(), name='interview_process'),
 ]

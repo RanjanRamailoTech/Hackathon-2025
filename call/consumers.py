@@ -11,6 +11,7 @@ import openai  # Import OpenAI client
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
 
+
 class InterviewConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

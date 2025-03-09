@@ -7,7 +7,7 @@ async def send_video_chunks():
     
     async with websockets.connect(uri) as websocket:
         # Send video chunks
-        with open("/home/suraj-sharma/Downloads/sample_video3.mp4", "rb") as f:
+        with open("sample_video3.mp4", "rb") as f:
             # while chunk := f.read(10 * 1024 * 1024):  # Read in chunks of 1MB
             await websocket.send(f.read())
             response = await websocket.recv()

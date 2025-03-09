@@ -9,8 +9,12 @@ import json
 import subprocess
 import openai
 from django.conf import settings
+from rest_framework import permissions
+from .serializers import InterviewSerializer
+import time
 
 class StartInterview(APIView):
+    
     def post(self, request):
         serializer = InterviewSerializer(data=request.data)
         if serializer.is_valid():
@@ -23,9 +27,11 @@ class StartInterview(APIView):
 
 
 class InterviewProcessingAPI(APIView):
+    
     """
     API view for processing interview videos and audio.
     """
+    permission_classes = [permissions.AllowAny]
     
     def post(self, request, format=None):
         """
@@ -38,53 +44,89 @@ class InterviewProcessingAPI(APIView):
         Returns:
           - Processed QA pairs extracted from the interview
         """
+        
+        interview_id = request.query_params.get('interview_id')
+        
+        if not interview_id:
+            return Response({"error": "interview_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            # Check what type of data we're receiving
-            if 'audio_data' in request.data:
-                # Handle audio processing
-                audio_data = request.data.get('audio_data')
-                text_response = self.process_audio(audio_data)
-                qa_pairs = self.extract_qa_pairs_from_audio(text_response)
-                return Response({'qa_pairs': qa_pairs}, status=status.HTTP_200_OK)
-            
-            elif 'video_file' in request.FILES:
-                # Handle video processing
-                video_file = request.FILES['video_file']
+            interview = Interview.objects.get(id=interview_id)
+        except Interview.DoesNotExist:
+            return Response({"error": "Interview not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if 'video_file' not in request.FILES:
+            return Response({"error": "video_file is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        video_file = request.FILES['video_file']
+        
+        # Define storage directory
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'interview', str(interview_id))
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename for the video chunk
+        timestamp = int(time.time() * 1000)  # Milliseconds for uniqueness
+        video_filename = f"video_chunk_{timestamp}_{video_file.name}"
+        video_path = os.path.join(upload_dir, video_filename)
+        
+        # Save the video file
+        with open(video_path, 'wb+') as f:
+            for chunk in video_file.chunks():
+                f.write(chunk)
+
+        # Update Interview model’s video_file JSON field
+        current_videos = interview.video_file or []
+        current_videos.append(video_path)
+        interview.video_file = current_videos
+        interview.save(update_fields=['video_file'])
+        
+        try:
+                # # Check what type of data we're receiving
+                # if 'audio_data' in request.data:
+                #     # Handle audio processing
+                #     audio_data = request.data.get('audio_data')
+                #     text_response = self.process_audio(audio_data)
+                #     qa_pairs = self.extract_qa_pairs_from_audio(text_response)
+                #     return Response({'qa_pairs': qa_pairs}, status=status.HTTP_200_OK)
                 
-                # Save the uploaded video to a temporary file
-                temp_video_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-                for chunk in video_file.chunks():
-                    temp_video_file.write(chunk)
-                temp_video_file.close()
-                
-                try:
-                    # Process the video file
-                    audio_text = self.extract_audio_and_process(temp_video_file.name)
-                    qa_pairs = self.extract_qa_pairs_from_audio(audio_text)
+                if 'video_file' in request.FILES:
+                    # Handle video processing
+                    video_file = request.FILES['video_file']
                     
-                    # Optional: Calculate score if requested
-                    if request.data.get('calculate_score', False):
-                        score = self.calculate_candidate_score(qa_pairs)
-                        return Response({
-                            'qa_pairs': qa_pairs,
-                            'candidate_score': score
-                        }, status=status.HTTP_200_OK)
+                    # Save the uploaded video to a temporary file
+                    temp_video_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+                    for chunk in video_file.chunks():
+                        temp_video_file.write(chunk)
+                    temp_video_file.close()
                     
-                    # Return the extracted QA pairs
-                    return Response({'qa_pairs': qa_pairs}, status=status.HTTP_200_OK)
+                    try:
+                        # Process the video file
+                        audio_text = self.extract_audio_and_process(temp_video_file.name)
+                        qa_pairs = self.extract_qa_pairs_from_audio(audio_text)
+                        
+                        # Optional: Calculate score if requested
+                        if request.data.get('calculate_score', False):
+                            score = self.calculate_candidate_score(qa_pairs)
+                            return Response({
+                                'qa_pairs': qa_pairs,
+                                'candidate_score': score
+                            }, status=status.HTTP_200_OK)
+                        
+                        # Return the extracted QA pairs
+                        return Response({'qa_pairs': qa_pairs}, status=status.HTTP_200_OK)
+                    
+                    finally:
+                        # Clean up the temporary file
+                        if os.path.exists(temp_video_file.name):
+                            os.remove(temp_video_file.name)
+                            print(f"Removed temporary video file: {temp_video_file.name}")
                 
-                finally:
-                    # Clean up the temporary file
-                    if os.path.exists(temp_video_file.name):
-                        os.remove(temp_video_file.name)
-                        print(f"Removed temporary video file: {temp_video_file.name}")
-            
-            else:
-                return Response({
-                    'error': 'No audio_data or video_file provided',
-                    'required_params': ['audio_data OR video_file']
-                }, status=status.HTTP_400_BAD_REQUEST)
-                
+                else:
+                    return Response({
+                        'error': 'No audio_data or video_file provided',
+                        'required_params': ['audio_data OR video_file']
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
         except Exception as e:
             import traceback
             traceback_str = traceback.format_exc()
@@ -92,43 +134,44 @@ class InterviewProcessingAPI(APIView):
                 'error': str(e),
                 'traceback': traceback_str
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def process_audio(self, audio_data):
-        """
-        Process base64 encoded audio data.
+
+
+    # def process_audio(self, audio_data):
+    #     """
+    #     Process base64 encoded audio data.
         
-        Args:
-            audio_data: Base64 encoded audio string
+    #     Args:
+    #         audio_data: Base64 encoded audio string
             
-        Returns:
-            Transcribed text from the audio
-        """
-        import base64
+    #     Returns:
+    #         Transcribed text from the audio
+    #     """
+    #     import base64
         
-        # Create a temporary file for the audio data
-        temp_audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        temp_audio_path = temp_audio_file.name
-        temp_audio_file.close()
+    #     # Create a temporary file for the audio data
+    #     temp_audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    #     temp_audio_path = temp_audio_file.name
+    #     temp_audio_file.close()
         
-        try:
-            # Decode base64 audio data and write to file
-            audio_bytes = base64.b64decode(audio_data)
-            with open(temp_audio_path, 'wb') as f:
-                f.write(audio_bytes)
+    #     try:
+    #         # Decode base64 audio data and write to file
+    #         audio_bytes = base64.b64decode(audio_data)
+    #         with open(temp_audio_path, 'wb') as f:
+    #             f.write(audio_bytes)
             
-            # Process the audio file for speech-to-text
-            transcribed_text = self.speech_to_text(temp_audio_path)
-            return transcribed_text
+    #         # Process the audio file for speech-to-text
+    #         transcribed_text = self.speech_to_text(temp_audio_path)
+    #         return transcribed_text
             
-        except Exception as e:
-            print(f"Error processing audio: {e}")
-            return f"Error processing audio: {str(e)}"
+    #     except Exception as e:
+    #         print(f"Error processing audio: {e}")
+    #         return f"Error processing audio: {str(e)}"
             
-        finally:
-            # Clean up temporary files
-            if os.path.exists(temp_audio_path):
-                os.remove(temp_audio_path)
-                print(f"Deleted temporary audio file: {temp_audio_path}")
+    #     finally:
+    #         # Clean up temporary files
+    #         if os.path.exists(temp_audio_path):
+    #             os.remove(temp_audio_path)
+    #             print(f"Deleted temporary audio file: {temp_audio_path}")
     
     def extract_audio_and_process(self, video_path):
         """
