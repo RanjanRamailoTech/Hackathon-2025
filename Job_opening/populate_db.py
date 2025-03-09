@@ -1,9 +1,18 @@
 import requests
 import random
-from datetime import datetime
-from io import BytesIO
 import json
-from reportlab.pdfgen import canvas
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("database_population.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 BASE_URL = "http://127.0.0.1:8000"
 SIGNUP_URL = f"{BASE_URL}/auth/signup/"
@@ -11,250 +20,166 @@ LOGIN_URL = f"{BASE_URL}/auth/login/"
 JOB_URL = f"{BASE_URL}/openings/job-openings/"
 APPLY_URL = f"{BASE_URL}/openings/apply/"
 
-# Dummy Data
-
-# Companies (5)
+# Dummy Data based on Postman JSON
 companies = [
-    {"name": "TechTrend Innovations", "email": "contact@techtrend.com", "username": "techtrend", "password": "Tech123!"},
-    {"name": "GreenLeaf Solutions", "email": "info@greenleaf.com", "username": "greenleaf", "password": "Green456@"},
-    {"name": "BlueSky Enterprises", "email": "support@bluesky.com", "username": "bluesky", "password": "Blue789#"},
-    {"name": "RedRock Technologies", "email": "hr@redrock.com", "username": "redrock", "password": "Red101$"},
-    {"name": "SilverLining Systems", "email": "admin@silverlining.com", "username": "silverlining", "password": "Silver202&"}
+    {"name": "TechNova", "email": "contact@technova.com", "username": "technova", "password": "Tech2025!"},
+    {"name": "DataPulse", "email": "info@datapulse.com", "username": "datapulse", "password": "Data2025@"},
+    {"name": "CloudPeak", "email": "hr@cloudpeak.com", "username": "cloudpeak", "password": "Cloud2025#"}
 ]
 
-# Job Openings (25 total, 5 per company)
-job_templates = [
-    {
-        "title": "Software Engineer",
-        "description": "Develop innovative software solutions.",
-        "deadline": "2025-04-01T23:59:59Z",
-        "form_variations": [
-            [{"question": "Years coding", "field_type": "number", "is_required": True}, {"question": "Languages", "field_type": "choice", "is_required": True, "options": ["Python", "Java", "C++"]}],
-            [{"question": "Coding experience", "field_type": "number", "is_required": True}, {"question": "Frameworks", "field_type": "text", "is_required": False}],
-            [{"question": "Dev years", "field_type": "number", "is_required": True}, {"question": "Open source contrib?", "field_type": "choice", "is_required": True, "options": ["Yes", "No"]}],
-            [{"question": "Experience in years", "field_type": "number", "is_required": True}, {"question": "Preferred IDE", "field_type": "text", "is_required": False}],
-            [{"question": "Software exp", "field_type": "number", "is_required": True}, {"question": "Team size", "field_type": "number", "is_required": False}]
-        ]
-    },
-    {
-        "title": "Data Analyst",
-        "description": "Analyze data for insights.",
-        "deadline": "2025-03-20T23:59:59Z",
-        "form_variations": [
-            [{"question": "Stats tools", "field_type": "text", "is_required": True}, {"question": "SQL exp", "field_type": "choice", "is_required": True, "options": ["Yes", "No"]}],
-            [{"question": "Data tools", "field_type": "text", "is_required": True}, {"question": "Years analyzing", "field_type": "number", "is_required": False}],
-            [{"question": "Analytics software", "field_type": "text", "is_required": True}, {"question": "Visualization exp", "field_type": "choice", "is_required": True, "options": ["Tableau", "Power BI", "None"]}],
-            [{"question": "Tool proficiency", "field_type": "text", "is_required": True}, {"question": "Data volume handled", "field_type": "number", "is_required": False}],
-            [{"question": "Analysis tools", "field_type": "text", "is_required": True}, {"question": "Certifications", "field_type": "text", "is_required": False}]
-        ]
-    },
-    {
-        "title": "QA Engineer",
-        "description": "Ensure product quality.",
-        "deadline": "2025-03-15T23:59:59Z",
-        "form_variations": [
-            [{"question": "Testing tools", "field_type": "text", "is_required": True}, {"question": "Automation yrs", "field_type": "number", "is_required": False}],
-            [{"question": "QA frameworks", "field_type": "text", "is_required": True}, {"question": "Bug tracking", "field_type": "choice", "is_required": True, "options": ["JIRA", "Bugzilla", "Other"]}],
-            [{"question": "Test platforms", "field_type": "text", "is_required": True}, {"question": "Manual exp", "field_type": "number", "is_required": False}],
-            [{"question": "Quality tools", "field_type": "text", "is_required": True}, {"question": "Test automation", "field_type": "choice", "is_required": True, "options": ["Yes", "No"]}],
-            [{"question": "QA experience", "field_type": "text", "is_required": True}, {"question": "Test cases written", "field_type": "number", "is_required": False}]
-        ]
-    },
-    {
-        "title": "Product Manager",
-        "description": "Lead product strategy.",
-        "deadline": "2025-04-10T23:59:59Z",
-        "form_variations": [
-            [{"question": "PM years", "field_type": "number", "is_required": True}, {"question": "Methodology", "field_type": "choice", "is_required": True, "options": ["Scrum", "Kanban"]}],
-            [{"question": "Product exp", "field_type": "number", "is_required": True}, {"question": "Team size managed", "field_type": "number", "is_required": False}],
-            [{"question": "Years in PM", "field_type": "number", "is_required": True}, {"question": "Roadmap tools", "field_type": "text", "is_required": False}],
-            [{"question": "Management exp", "field_type": "number", "is_required": True}, {"question": "Stakeholder exp", "field_type": "choice", "is_required": True, "options": ["Yes", "No"]}],
-            [{"question": "PM tenure", "field_type": "number", "is_required": True}, {"question": "Product launches", "field_type": "number", "is_required": False}]
-        ]
-    },
-    {
-        "title": "DevOps Engineer",
-        "description": "Manage infrastructure.",
-        "deadline": "2025-03-25T23:59:59Z",
-        "form_variations": [
-            [{"question": "Cloud platforms", "field_type": "text", "is_required": True}, {"question": "CI/CD tools", "field_type": "choice", "is_required": False, "options": ["Jenkins", "GitLab CI"]}],
-            [{"question": "Infra tools", "field_type": "text", "is_required": True}, {"question": "Years in DevOps", "field_type": "number", "is_required": False}],
-            [{"question": "Cloud exp", "field_type": "text", "is_required": True}, {"question": "Container exp", "field_type": "choice", "is_required": True, "options": ["Docker", "Kubernetes", "None"]}],
-            [{"question": "DevOps tools", "field_type": "text", "is_required": True}, {"question": "Monitoring exp", "field_type": "number", "is_required": False}],
-            [{"question": "Infrastructure", "field_type": "text", "is_required": True}, {"question": "Automation tools", "field_type": "text", "is_required": False}]
-        ]
-    }
+job_openings = [
+    {"title": "Backend Engineer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-01", "description": "Build scalable APIs", "requirements": "Node.js, PostgreSQL", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["What is Node.js experience?", "Describe a backend project"], "benchmark": 40},
+    {"title": "Frontend Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-02", "description": "Create responsive UI", "requirements": "React, TypeScript", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["React proficiency?", "UI design experience"], "benchmark": 35},
+    {"title": "Data Scientist", "department": "Data", "location": "On-site", "status": "Pending", "postedDate": "2025-03-03", "description": "Analyze large datasets", "requirements": "Python, ML", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Python skills?", "ML project example"], "benchmark": 50},
+    {"title": "DevOps Engineer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-04", "description": "Manage CI/CD", "requirements": "AWS, Docker", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["AWS experience?", "CI/CD tools used"], "benchmark": 45},
+    {"title": "QA Engineer", "department": "Quality", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-05", "description": "Ensure product quality", "requirements": "Selenium, JIRA", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Selenium experience?", "Bug tracking tools"], "benchmark": 30},
+    {"title": "Product Manager", "department": "Product", "location": "On-site", "status": "Pending", "postedDate": "2025-03-06", "description": "Lead product strategy", "requirements": "Agile, Roadmap", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Agile experience?", "Roadmap planning"], "benchmark": 55},
+    {"title": "UI/UX Designer", "department": "Design", "location": "Remote", "status": "Pending", "postedDate": "2025-03-07", "description": "Design user interfaces", "requirements": "Figma, Adobe XD", "jobType": "Contract", "experienceLevel": "Mid", "questions": ["Figma skills?", "UX project"], "benchmark": 40},
+    {"title": "Mobile Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-08", "description": "Build mobile apps", "requirements": "Swift, Kotlin", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Swift experience?", "Mobile app example"], "benchmark": 35},
+    {"title": "Security Analyst", "department": "Security", "location": "On-site", "status": "Pending", "postedDate": "2025-03-09", "description": "Protect systems", "requirements": "Penetration testing", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Pen testing skills?", "Security incident"], "benchmark": 50},
+    {"title": "Cloud Architect", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-10", "description": "Design cloud solutions", "requirements": "AWS, Azure", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["AWS expertise?", "Cloud design"], "benchmark": 60},
+    {"title": "Full Stack Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-11", "description": "End-to-end development", "requirements": "MERN stack", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["MERN experience?", "Full stack project"], "benchmark": 45},
+    {"title": "Machine Learning Engineer", "department": "Data", "location": "Remote", "status": "Pending", "postedDate": "2025-03-12", "description": "Develop ML models", "requirements": "TensorFlow, PyTorch", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["TensorFlow skills?", "ML model example"], "benchmark": 55},
+    {"title": "Systems Administrator", "department": "IT", "location": "On-site", "status": "Pending", "postedDate": "2025-03-13", "description": "Manage servers", "requirements": "Linux, Windows", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Linux experience?", "Server management"], "benchmark": 40},
+    {"title": "Technical Writer", "department": "Documentation", "location": "Remote", "status": "Pending", "postedDate": "2025-03-14", "description": "Write technical docs", "requirements": "Markdown, API docs", "jobType": "Part-time", "experienceLevel": "Junior", "questions": ["Markdown skills?", "Doc example"], "benchmark": 30},
+    {"title": "Business Analyst", "department": "Business", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-15", "description": "Gather requirements", "requirements": "BPMN, UML", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["BPMN experience?", "Requirements gathering"], "benchmark": 40},
+    {"title": "Database Administrator", "department": "IT", "location": "On-site", "status": "Pending", "postedDate": "2025-03-16", "description": "Manage databases", "requirements": "SQL, NoSQL", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["SQL skills?", "DB management"], "benchmark": 50},
+    {"title": "Network Engineer", "department": "IT", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-17", "description": "Maintain networks", "requirements": "Cisco, TCP/IP", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Cisco experience?", "Network troubleshooting"], "benchmark": 45},
+    {"title": "Game Developer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-18", "description": "Build games", "requirements": "Unity, Unreal", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Unity skills?", "Game project"], "benchmark": 35},
+    {"title": "AI Engineer", "department": "Data", "location": "On-site", "status": "Pending", "postedDate": "2025-03-19", "description": "Develop AI solutions", "requirements": "NLP, Deep Learning", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["NLP experience?", "AI project"], "benchmark": 60},
+    {"title": "Support Engineer", "department": "Support", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-20", "description": "Assist customers", "requirements": "Ticketing systems", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Ticketing experience?", "Support example"], "benchmark": 30},
+    {"title": "Blockchain Developer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-21", "description": "Build blockchain apps", "requirements": "Solidity, Ethereum", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Solidity skills?", "Blockchain project"], "benchmark": 45},
+    {"title": "Embedded Systems Engineer", "department": "Engineering", "location": "On-site", "status": "Pending", "postedDate": "2025-03-22", "description": "Develop firmware", "requirements": "C, RTOS", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["C experience?", "Firmware example"], "benchmark": 50},
+    {"title": "AR/VR Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-23", "description": "Create immersive experiences", "requirements": "Unity, VR SDKs", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Unity VR skills?", "AR/VR project"], "benchmark": 40},
+    {"title": "Site Reliability Engineer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-24", "description": "Ensure uptime", "requirements": "Monitoring, Incident response", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Monitoring experience?", "Incident handling"], "benchmark": 55},
+    {"title": "Scrum Master", "department": "Product", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-25", "description": "Facilitate Agile", "requirements": "Scrum, Kanban", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Scrum experience?", "Agile facilitation"], "benchmark": 45}
 ]
 
-# Applicants (20 unique users)
 applicants = [
-    {"email": "alice.johnson@example.com", "name": "Alice Johnson", "gender": "female", "country": "USA", "phone": "+12025550123"},
-    {"email": "bob.smith@example.com", "name": "Bob Smith", "gender": "male", "country": "Canada", "phone": "+14165550123"},
-    {"email": "clara.lee@example.com", "name": "Clara Lee", "gender": "female", "country": "UK", "phone": "+447700900123"},
-    {"email": "david.kim@example.com", "name": "David Kim", "gender": "male", "country": "South Korea", "phone": "+821012345678"},
-    {"email": "emma.wong@example.com", "name": "Emma Wong", "gender": "female", "country": "Australia", "phone": "+61412345678"},
-    {"email": "frank.brown@example.com", "name": "Frank Brown", "gender": "male", "country": "Germany", "phone": "+4917612345678"},
-    {"email": "grace.chen@example.com", "name": "Grace Chen", "gender": "female", "country": "China", "phone": "+8613912345678"},
-    {"email": "henry.davis@example.com", "name": "Henry Davis", "gender": "male", "country": "USA", "phone": "+12035550123"},
-    {"email": "isabella.martin@example.com", "name": "Isabella Martin", "gender": "female", "country": "France", "phone": "+33612345678"},
-    {"email": "james.park@example.com", "name": "James Park", "gender": "male", "country": "Japan", "phone": "+81312345678"},
-    {"email": "kate.evans@example.com", "name": "Kate Evans", "gender": "female", "country": "UK", "phone": "+447800900123"},
-    {"email": "liam.nguyen@example.com", "name": "Liam Nguyen", "gender": "male", "country": "Vietnam", "phone": "+84901234567"},
-    {"email": "mia.garcia@example.com", "name": "Mia Garcia", "gender": "female", "country": "Spain", "phone": "+34612345678"},
-    {"email": "noah.ali@example.com", "name": "Noah Ali", "gender": "male", "country": "India", "phone": "+919876543210"},
-    {"email": "olivia.silva@example.com", "name": "Olivia Silva", "gender": "female", "country": "Brazil", "phone": "+5511987654321"},
-    {"email": "peter.jones@example.com", "name": "Peter Jones", "gender": "male", "country": "USA", "phone": "+12045550123"},
-    {"email": "quinn.taylor@example.com", "name": "Quinn Taylor", "gender": "female", "country": "Canada", "phone": "+14175550123"},
-    {"email": "raj.patel@example.com", "name": "Raj Patel", "gender": "male", "country": "India", "phone": "+919012345678"},
-    {"email": "sophia.hernandez@example.com", "name": "Sophia Hernandez", "gender": "female", "country": "Mexico", "phone": "+5215512345678"},
-    {"email": "thomas.white@example.com", "name": "Thomas White", "gender": "male", "country": "Australia", "phone": "+61422345678"}
+    {"email": "alice.j@example.com", "name": "Alice J", "role": "Engineer", "status": "New"},
+    {"email": "bob.s@example.com", "name": "Bob S", "role": "Developer", "status": "New"},
+    {"email": "clara.l@example.com", "name": "Clara L", "role": "Analyst", "status": "New"},
+    {"email": "david.k@example.com", "name": "David K", "role": "Engineer", "status": "New"},
+    {"email": "emma.w@example.com", "name": "Emma W", "role": "Designer", "status": "New"},
+    {"email": "frank.b@example.com", "name": "Frank B", "role": "Manager", "status": "New"},
+    {"email": "grace.c@example.com", "name": "Grace C", "role": "Scientist", "status": "New"},
+    {"email": "henry.d@example.com", "name": "Henry D", "role": "Engineer", "status": "New"},
+    {"email": "isabella.m@example.com", "name": "Isabella M", "role": "Developer", "status": "New"},
+    {"email": "james.p@example.com", "name": "James P", "role": "Analyst", "status": "New"},
+    {"email": "kate.e@example.com", "name": "Kate E", "role": "Engineer", "status": "New"},
+    {"email": "liam.n@example.com", "name": "Liam N", "role": "Designer", "status": "New"},
+    {"email": "mia.g@example.com", "name": "Mia G", "role": "Manager", "status": "New"},
+    {"email": "noah.a@example.com", "name": "Noah A", "role": "Developer", "status": "New"},
+    {"email": "olivia.s@example.com", "name": "Olivia S", "role": "Engineer", "status": "New"},
+    {"email": "peter.j@example.com", "name": "Peter J", "role": "Analyst", "status": "New"},
+    {"email": "quinn.t@example.com", "name": "Quinn T", "role": "Scientist", "status": "New"},
+    {"email": "raj.p@example.com", "name": "Raj P", "role": "Engineer", "status": "New"},
+    {"email": "sophia.h@example.com", "name": "Sophia H", "role": "Developer", "status": "New"},
+    {"email": "thomas.w@example.com", "name": "Thomas W", "role": "Manager", "status": "New"}
 ]
 
-# CV Content Pool
 SKILLS_POOL = [
-    "Python", "Java", "C++", "JavaScript", "Django", "Flask", "React", "Node.js", "SQL", "MongoDB",
-    "AWS", "Docker", "Kubernetes", "Jenkins", "Git", "Agile", "Scrum", "REST", "GraphQL", "Microservices",
-    "Tableau", "Power BI", "Machine Learning", "JIRA", "Bugzilla"
+    "Python", "Java", "JavaScript", "React", "Node.js", "SQL", "AWS", "Docker", "Kubernetes", "Jenkins",
+    "Machine Learning", "Tableau", "Power BI", "Agile", "Scrum", "Figma", "Solidity", "C", "Unity", "NLP"
 ]
-EXPERIENCE_POOL = [
-    "Software Developer at TechCorp, 3 years",
-    "Data Analyst at Insight Analytics, 2 years",
-    "QA Engineer at QualitySoft, 4 years",
-    "Product Manager at InnovateNow, 5 years",
-    "DevOps Engineer at CloudBase, 3 years"
-]
-EDUCATION_POOL = [
-    "B.S. in Computer Science",
-    "M.S. in Data Science",
-    "B.E. in Software Engineering",
-    "MBA",
-    "B.Tech in Information Technology"
-]
-
-def generate_cv_pdf(applicant_name, job_title):
-    """Generate a random CV PDF for an applicant."""
-    buffer = BytesIO()
-    p = canvas.Canvas(buffer)
-    p.setFont("Helvetica", 12)
-    
-    # Header
-    p.drawString(100, 750, f"CV for {applicant_name}")
-    p.drawString(100, 730, f"Applying for: {job_title}")
-    
-    # Experience
-    experience = random.sample(EXPERIENCE_POOL, k=1)[0]
-    p.drawString(100, 700, "Experience:")
-    p.drawString(120, 680, experience)
-    
-    # Skills
-    skills = random.sample(SKILLS_POOL, k=random.randint(4, 8))
-    p.drawString(100, 650, "Skills:")
-    p.drawString(120, 630, ", ".join(skills))
-    
-    # Education
-    education = random.choice(EDUCATION_POOL)
-    p.drawString(100, 600, "Education:")
-    p.drawString(120, 580, education)
-    
-    p.showPage()
-    p.save()
-    buffer.seek(0)
-    return buffer
 
 def populate_database():
     company_tokens = []
-
-    # Step 1: Register 5 companies
-    print("Registering companies...")
+    
+    # Step 1: Register 3 companies (POST /auth/signup/)
+    logger.info("Starting company registration...")
     for company in companies:
-        response = requests.post(SIGNUP_URL, json=company)
-        if response.status_code == 201:
-            print(f"Registered {company['name']} successfully.")
-        else:
-            print(f"Failed to register {company['name']}: {response.text}")
+        try:
+            response = requests.post(SIGNUP_URL, json=company)
+            if response.status_code == 201:
+                logger.info(f"Successfully registered {company['name']}")
+            else:
+                logger.error(f"Failed to register {company['name']}: {response.status_code} - {response.text}")
+                return
+        except requests.RequestException as e:
+            logger.error(f"Network error registering {company['name']}: {str(e)}")
             return
 
-    # Step 2: Login to each company
-    print("\nLogging in companies...")
+    # Step 2: Login to each company (POST /auth/login/)
+    logger.info("\nStarting company logins...")
     for company in companies:
-        login_data = {"username": company["username"], "password": company["password"]}
-        response = requests.post(LOGIN_URL, json=login_data)
-        if response.status_code == 200:
-            tokens = response.json()
-            company_tokens.append({"company": company["name"], "access": tokens["access"], "refresh": tokens["refresh"]})
-            print(f"Logged in {company['name']} successfully.")
-        else:
-            print(f"Failed to login {company['name']}: {response.text}")
+        try:
+            login_data = {"username": company["username"], "password": company["password"]}
+            response = requests.post(LOGIN_URL, json=login_data)
+            if response.status_code == 200:
+                tokens = response.json()
+                company_tokens.append({"company": company["name"], "access": tokens["access"]})
+                logger.info(f"Successfully logged in {company['name']}")
+            else:
+                logger.error(f"Failed to login {company['name']}: {response.status_code} - {response.text}")
+                return
+        except requests.RequestException as e:
+            logger.error(f"Network error logging in {company['name']}: {str(e)}")
             return
 
-    # Step 3: Create 5 jobs per company (25 total)
-    print("\nCreating jobs...")
-    job_ids = {}
-    for token in company_tokens:
-        headers = {"Authorization": f"Bearer {token['access']}", "Content-Type": "application/json"}
-        job_ids[token["company"]] = []
-        for i, job_template in enumerate(job_templates):
-            job = {
-                "title": job_template["title"],
-                "description": job_template["description"],
-                "deadline": job_template["deadline"],
-                "form_fields": job_template["form_variations"][i]
-            }
+    # Step 3: Create 25 job openings (POST /openings/job-openings/)
+    logger.info("\nStarting job creation...")
+    job_ids = {company["name"]: [] for company in companies}
+    for i, job in enumerate(job_openings):
+        company = company_tokens[i % 3]
+        headers = {"Authorization": f"Bearer {company['access']}"}
+        try:
             response = requests.post(JOB_URL, headers=headers, json=job)
             if response.status_code == 201:
                 job_id = response.json()["id"]
-                job_ids[token["company"]].append(job_id)
-                print(f"Created '{job['title']}' for {token['company']} (ID: {job_id}).")
+                job_ids[company["company"]].append(job_id)
+                logger.info(f"Created '{job['title']}' for {company['company']} (ID: {job_id})")
             else:
-                print(f"Failed to create job for {token['company']}: {response.text}")
+                logger.error(f"Failed to create '{job['title']}': {response.status_code} - {response.text}")
                 return
+        except requests.RequestException as e:
+            logger.error(f"Network error creating job '{job['title']}': {str(e)}")
+            return
 
-    # Step 4: Populate applicant responses with CVs
-    print("\nPopulating applicant responses...")
-    all_job_ids = [job_id for company_jobs in job_ids.values() for job_id in company_jobs]
-    for applicant in applicants:
-        num_applications = random.randint(3, 5)
-        selected_jobs = random.sample(all_job_ids, num_applications)
+    # Step 4: Create 50-100 application responses (POST /openings/apply/{id}/)
+    logger.info("\nStarting application responses...")
+    all_job_ids = [jid for jobs in job_ids.values() for jid in jobs]
+    total_applications = random.randint(50, 100)
+    application_count = 0
+    
+    while application_count < total_applications:
+        applicant = random.choice(applicants)
+        job_id = random.choice(all_job_ids)
+        company_name = next(company for company, ids in job_ids.items() if job_id in ids)
+        headers = {"Authorization": f"Bearer {next(t['access'] for t in company_tokens if t['company'] == company_name)}"}
         
-        for job_id in selected_jobs:
-            company = next(c for c, ids in job_ids.items() if job_id in ids)
-            headers = {"Authorization": f"Bearer {next(t['access'] for t in company_tokens if t['company'] == company)}"}
-            job_response = requests.get(f"{JOB_URL}{job_id}/", headers=headers).json()
-            job_template = next(j for j in job_templates if j["title"] == job_response["title"])
-            form_fields = job_template["form_variations"][job_templates.index(job_template)]
-
-            if datetime.strptime(job_response["deadline"], "%Y-%m-%dT%H:%M:%SZ") <= datetime.utcnow():
-                print(f"Skipping response for {applicant['name']} to expired job ID {job_id} ({job_response['title']}).")
+        try:
+            # Fetch job details to get title
+            job_response = requests.get(f"{JOB_URL}{job_id}/", headers=headers)
+            if job_response.status_code != 200:
+                logger.warning(f"Could not fetch job {job_id}: {job_response.status_code} - {job_response.text}")
                 continue
+            job_title = job_response.json()["title"]
 
-            responses = {}
-            for field in form_fields:
-                if field["field_type"] == "number":
-                    responses[field["question"]] = str(random.randint(1, 10))
-                elif field["field_type"] == "text":
-                    responses[field["question"]] = f"Skill{random.randint(1, 5)}"
-                elif field["field_type"] == "choice":
-                    responses[field["question"]] = random.choice(field["options"])
-
-            # Generate a random CV PDF
-            cv_buffer = generate_cv_pdf(applicant["name"], job_response["title"])
-            cv_file = {"cv": ("cv.pdf", cv_buffer, "application/pdf")}
-
-            data = {
-                "email_address": applicant["email"],
+            # Application data based on Postman "Apply-job" endpoint
+            applied_date = f"2025-03-{random.randint(1, 25):02d}"
+            resume_parse_data = {"text": f"Experienced in {random.choice(SKILLS_POOL)} and {random.choice(SKILLS_POOL)}"}
+            app_data = {
                 "name": applicant["name"],
-                "gender": applicant["gender"],
-                "country": applicant["country"],
-                "phone_number": applicant["phone"],
-                "responses": json.dumps(responses)  # Send as JSON string
+                "email": applicant["email"],
+                "role": applicant["role"],
+                "status": applicant["status"],
+                "score": random.randint(20, 80),
+                "appliedFor": job_title,
+                "appliedDate": applied_date,
+                "resumeParseData": resume_parse_data
             }
 
-            response = requests.post(f"{APPLY_URL}{job_id}/", files=cv_file, data=data)
+            response = requests.post(f"{APPLY_URL}{job_id}/", json=app_data)
             if response.status_code == 201:
-                print(f"Added response with CV for {applicant['name']} to job ID {job_id} ({job_response['title']})")
+                application_count += 1
+                logger.info(f"Application {application_count}/{total_applications}: {applicant['name']} applied to {job_title} (ID: {job_id})")
             else:
-                print(f"Failed to add response for {applicant['name']} to job ID {job_id}")
-            cv_buffer.close()  # Clean up the buffer
+                logger.error(f"Failed to apply for {applicant['name']} to job ID {job_id}: {response.status_code} - {response.text}")
+        except requests.RequestException as e:
+            logger.error(f"Network error applying for {applicant['name']} to job ID {job_id}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error applying for {applicant['name']} to job ID {job_id}: {str(e)}")
 
 if __name__ == "__main__":
     populate_database()
