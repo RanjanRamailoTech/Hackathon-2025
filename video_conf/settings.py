@@ -42,8 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'daphne',
-    'channels',
+    # 'daphne',
+    # 'channels',
     'django.contrib.staticfiles',
     'rest_framework',
     'django_crontab',
@@ -53,13 +53,13 @@ INSTALLED_APPS = [
     'corsheaders',
     ]
 
-# Celery Configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the broker
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Store task results (optional)
-CELERY_ACCEPT_CONTENT = ['json']  # Task serialization
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
+# # Celery Configuration
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as the broker
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Store task results (optional)
+# CELERY_ACCEPT_CONTENT = ['json']  # Task serialization
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_SERIALIZER = 'json'
+# CELERY_TIMEZONE = 'UTC'
 
 
 MIDDLEWARE = [
@@ -100,9 +100,9 @@ SIMPLE_JWT = {
 }
 
 #needed is we decide to create an automated task at some time stamp like archiving the job that have expired
-CRONJOBS = [
-    ("0 0 * * *", "Job_opening.views.archive_expired_jobs"),  # Runs daily at midnight UTC
-]
+# CRONJOBS = [
+#     ("0 0 * * *", "Job_opening.views.archive_expired_jobs"),  # Runs daily at midnight UTC
+# ]
 
 TEMPLATES = [
     {
@@ -122,13 +122,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'video_conf.wsgi.application'
 
-ASGI_APPLICATION = 'video_conf.asgi.application'
+# ASGI_APPLICATION = 'video_conf.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels.layers.InMemoryChannelLayer',
+#     },
+# }
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -140,14 +140,14 @@ CHANNEL_LAYERS = {
 # }
 
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
-        },
-    },
-}
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [("127.0.0.1", 6379)],
+#         },
+#     },
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -205,7 +205,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='video_conf_db'),
+        'NAME': config('DB_NAME', default='Interviewdb'),
         'USER': config('DB_USER', default='video_conf_user'),
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST', default='localhost'),
@@ -217,5 +217,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Use 'console.Em
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_USERNAME = config('EMAIL_HOST_USER', default = '')
+EMAIL_APP_PASSWORD = config('GMAIL_APP_PASS', default = '')
+
 
 OPEN_AI_KEY = config('OPEN_AI_KEY', default = '')

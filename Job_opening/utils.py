@@ -5,12 +5,12 @@ from dotenv import load_dotenv
 import smtplib
 import ssl
 import os
-
+from django.conf import settings
 
 class GetEnv:
-    load_dotenv()
     def load_email_config():
-        return os.getenv('EMAIL_HOST_USER'), os.getenv('GMAIL_APP_PASS')
+        return settings.EMAIL_USERNAME, settings.EMAIL_APP_PASSWORD
+
 
 class Util:
     @staticmethod
