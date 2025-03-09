@@ -28,18 +28,8 @@ class JobOpening(models.Model):
     postedDate = models.DateField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     requirements = models.TextField(blank=True, null=True)
-    jobType = models.CharField(
-        max_length=20,
-        choices=(("Full-time", "Full-time"), ("Part-time", "Part-time"), ("Contract", "Contract")),
-        blank=True,
-        null=True
-    )
-    experienceLevel = models.CharField(
-        max_length=20,
-        choices=(("Entry", "Entry"), ("Mid", "Mid"), ("Senior", "Senior")),
-        blank=True,
-        null=True
-    )
+    jobType = models.CharField(blank=True,null=True)
+    experienceLevel = models.CharField(max_length=20,blank=True,null=True)
     questions = models.JSONField(default=list, blank=True)
     application_link = models.URLField(max_length=255, blank=True, null=True)  # for application link
     benchmark = models.IntegerField(default=0)
@@ -57,7 +47,7 @@ class ApplicantResponse(models.Model):
     role = models.CharField(max_length=255)  # e.g., "Backend Engineer"
     status = models.CharField(
         max_length=20,
-        choices=(("New", "New"), ("In Progress", "In Progress"), ("Rejected", "Rejected"), ("Hired", "Hired")),
+        choices=(("New", "New"), ("In Progress", "In Progress"), ("Rejected", "Rejected")),
         default="New"
     )
     score = models.IntegerField(default=0,null=True,blank=True)
