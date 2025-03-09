@@ -73,12 +73,22 @@ class InterviewProcessingAPI(APIView):
         with open(video_path, 'wb+') as f:
             for chunk in video_file.chunks():
                 f.write(chunk)
-
+        video_file = interview.video_file
+        video_file.append(video_path)
+        videos = {
+            'video_file': video_file
+        }
         # Update Interview model’s video_file JSON field
-        current_videos = interview.video_file or []
-        current_videos.append(video_path)
-        interview.video_file = current_videos
-        interview.save(update_fields=['video_file'])
+        interview_serializer = InterviewSerializer(interview,data=videos, partial=True)
+        if interview_serializer.is_valid():
+            interview_serializer.save()
+        else:
+            print(interview_serializer.errors)
+            return Response({"error": "Failed to update the video list"}, status=status.HTTP_400_BAD_REQUEST)
+        # current_videos = interview.video_file or []
+        # current_videos.append(video_path)
+        # interview.video_file = current_videos
+        # interview.save(update_fields=['video_file'])
         
         try:
                 # # Check what type of data we're receiving
