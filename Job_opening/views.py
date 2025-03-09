@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from .models import JobOpening, ApplicantResponse, Company
-from .serializers import JobOpeningSerializer, ApplicantResponseSerializer
+from .serializers import JobOpeningSerializer, ApplicantResponseSerializer, JobOpeningPublicSerializer
 import logging
 from django.utils import timezone
 from .tasks import send_application_email
@@ -22,11 +22,14 @@ class JobOpeningListCreateView(APIView):
             return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request):
-        serializer = JobOpeningSerializer(data=request.data)
+        serializer = JobOpeningSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             try:
                 company = request.user.company
                 serializer.save(company=company)
+                print(serializer.data)
+                # data = JobOpening.objects.filter(id= serializer.data['id']).first()
+                # return_data = JobOpeningSerializer(data)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Company.DoesNotExist:
                 return Response({"error": "Company not found for this user"}, status=status.HTTP_404_NOT_FOUND)
@@ -67,6 +70,19 @@ class JobOpeningDetailView(APIView):
             return Response({"error": "Job opening not found"}, status=status.HTTP_404_NOT_FOUND)
 
 logger = logging.getLogger(__name__)
+
+   
+class JobOpeningPublicDetailView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, pk):
+        try:
+            job_opening = JobOpening.objects.get(id=pk)
+            serializer = JobOpeningPublicSerializer(job_opening)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except JobOpening.DoesNotExist:
+            return Response({"error": "Job opening not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class ApplicantResponseCreateView(APIView):
     permission_classes = [permissions.AllowAny]

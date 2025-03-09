@@ -18,11 +18,6 @@ class JobOpeningSerializer(serializers.ModelSerializer):
             "description", "requirements", "jobType", "experienceLevel", "questions", "application_link", "benchmark"
         ]
 
-    def create(self, validated_data):
-        # Create the JobOpening instance with all fields
-        job_opening = JobOpening.objects.create(**validated_data)
-        return job_opening
-
     def update(self, instance, validated_data):
         instance.title = validated_data.get("title", instance.title)
         instance.department = validated_data.get("department", instance.department)
@@ -54,9 +49,20 @@ class JobOpeningSerializer(serializers.ModelSerializer):
             apply_url = reverse('applicant-response-create', kwargs={'jobId': instance.id})
             instance.application_link = request.build_absolute_uri(apply_url)
             instance.save(update_fields=['application_link'])
+            print(f'Application link : {instance.application_link}')
         logger.debug(f"Created JobOpening with application_link: {instance.application_link}")
         return instance
 
+
+class JobOpeningPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JobOpening
+        fields = [
+            "id", "title", "department", "location", "postedDate",
+            "description", "requirements", "jobType", "experienceLevel","application_link",
+        ]
+        
+        
 class ApplicantResponseSerializer(serializers.ModelSerializer):
     jobId = serializers.PrimaryKeyRelatedField(queryset=JobOpening.objects.all())
     class Meta:
