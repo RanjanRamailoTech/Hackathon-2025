@@ -2,11 +2,12 @@
 from .utils import Util  # Adjust import based on your structure
 import logging
 from call.models import Interview
+from django.conf import settings
 
 
 logger = logging.getLogger(__name__)
 
-def send_application_email(applicant_name, applicant_email, job_title, score, benchmark, applicant_id, request_host):
+def send_application_email(applicant_name, applicant_email, job_title, job_id, score, benchmark, applicant_id, request_host):
     if not applicant_email or not isinstance(applicant_email, str):
         logger.error(f"Invalid email address for {applicant_name}: {applicant_email}")
         return
@@ -21,8 +22,7 @@ def send_application_email(applicant_name, applicant_email, job_title, score, be
         )
         interview_id = interview.id
         # Generate interview URL
-        interview_url = f"http://{request_host}/call/start-interview/?interview_id={interview.id}"
-        
+        interview_url = f"{settings.FRONTEND_HOST}?job_id={job_id}&interview_id={interview_id}"
         
         message = (
             f"Dear {applicant_name},\n\n"
