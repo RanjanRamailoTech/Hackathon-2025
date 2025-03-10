@@ -1,18 +1,10 @@
 from django.urls import path
 from .views import (
-    JobOpeningListCreateView,
-    JobOpeningDetailView,
-    ApplicantResponseCreateView,
-    ApplicantResponseListView,
-    ApplicantResponseDetailView,
-    # ArchivedJobOpeningsListView
-    JobOpeningQuestionsView,
-    CompanyDashboardStatsView,
-    CompanyApplicantResponsesListView,
-    JobOpeningPublicDetailView
+    JobOpeningListCreateView, JobOpeningDetailView, ApplicantResponseCreateView,
+    ApplicantResponseListView, ApplicantResponseDetailView, JobOpeningQuestionsView,
+    CompanyDashboardStatsView, CompanyApplicantResponsesListView, JobOpeningPublicDetailView
 )
-from django.conf import settings
-from django.conf.urls.static import static
+
 
 urlpatterns = [
     path("job-openings/", JobOpeningListCreateView.as_view(), name="job-opening-list-create"),
@@ -23,6 +15,5 @@ urlpatterns = [
     path("dashboard/job-openings/<int:jobId>/responses/<int:responseId>/", ApplicantResponseDetailView.as_view(), name="job-opening-response-detail"),
     path("dashboard/", CompanyDashboardStatsView.as_view(), name="company-dashboard"),
     path("dashboard/total-applicant/", CompanyApplicantResponsesListView.as_view(), name="company-total-applicant"),
-    # path("dashboard/archived-job-openings/", ArchivedJobOpeningsListView.as_view(), name="archived-job-openings-list"),
-    path("questions/<int:jobId>/", JobOpeningQuestionsView.as_view(), name="job-opening-questions"),  # New endpoint
+    path("questions/<int:jobId>/", JobOpeningQuestionsView.as_view(), name="job-opening-questions"),
 ]

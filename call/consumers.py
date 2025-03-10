@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import os
 import speech_recognition as sr
-import openai  # Import OpenAI client
+import openai
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
 
@@ -15,10 +15,9 @@ from django.conf import settings
 class InterviewConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.temp_video_file = None  # Temporary file for storing video chunks
+        self.temp_video_file = None
 
     async def connect(self):
-        print("Attempting to connect")
         self.interview_id = self.scope['url_route']['kwargs']['interview_id']
         self.room_group_name = f'interview_{self.interview_id}'
 
@@ -27,20 +26,15 @@ class InterviewConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         await self.accept()
-        print(f"Connection accepted for interview ID: {self.interview_id}")
-
+        
     async def disconnect(self, close_code):
-        print("Disconnecting...")
-        # Clean up temporary files when disconnecting
         if self.temp_video_file and os.path.exists(self.temp_video_file.name):
-            print(f"Removing temporary video file: {self.temp_video_file.name}")
             os.remove(self.temp_video_file.name)
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
-        print("Disconnected successfully.")
-
+        
     async def receive(self, text_data=None, bytes_data=None):
         try:
             if text_data:
@@ -48,17 +42,14 @@ class InterviewConsumer(AsyncWebsocketConsumer):
                 message_type = data.get('type', None)
 
                 if message_type == 'heartbeat':
-                    print("Received heartbeat from client")
                     return
 
                 if message_type == 'audio_chunk':
                     audio_data = data.get('audio_data', None)
                     if audio_data:
-                        print("Received audio chunk.")
                         await self.process_audio_chunk(audio_data)
 
             elif bytes_data:
-                print("Received video frame.")
                 await self.process_video_frame(bytes_data)
 
         except Exception as e:

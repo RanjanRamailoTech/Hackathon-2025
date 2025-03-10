@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from Job_opening.models import Company  # Import from Job_opening app
+from Job_opening.models import Company
 
 class CompanySignupSerializer(serializers.ModelSerializer):
     username = serializers.CharField(write_only=True)
@@ -16,15 +16,12 @@ class CompanySignupSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        # Create User instance
         user_data = {
             "username": validated_data.pop("username"),
             "email": validated_data["email"],
             "password": validated_data.pop("password"),
         }
         user = User.objects.create_user(**user_data)
-        
-        # Create Company instance linked to User
         company = Company.objects.create(user=user, **validated_data)
         return company
 
