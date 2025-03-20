@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "https://ai-interview-urf8.onrender.com/"
 SIGNUP_URL = f"{BASE_URL}/auth/signup/"
 LOGIN_URL = f"{BASE_URL}/auth/login/"
 JOB_URL = f"{BASE_URL}/openings/job-openings/"
@@ -26,33 +26,325 @@ companies = [
     {"name": "DataPulse", "email": "info@datapulse.com", "username": "datapulse", "password": "Data2025@"},
     {"name": "CloudPeak", "email": "hr@cloudpeak.com", "username": "cloudpeak", "password": "Cloud2025#"}
 ]
-
 job_openings = [
-    {"title": "Backend Engineer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-01", "description": "Build scalable APIs", "requirements": "Node.js, PostgreSQL", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["What is Node.js experience?", "Describe a backend project"], "benchmark": 40},
-    {"title": "Frontend Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-02", "description": "Create responsive UI", "requirements": "React, TypeScript", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["React proficiency?", "UI design experience"], "benchmark": 35},
-    {"title": "Data Scientist", "department": "Data", "location": "On-site", "status": "Pending", "postedDate": "2025-03-03", "description": "Analyze large datasets", "requirements": "Python, ML", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Python skills?", "ML project example"], "benchmark": 50},
-    {"title": "DevOps Engineer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-04", "description": "Manage CI/CD", "requirements": "AWS, Docker", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["AWS experience?", "CI/CD tools used"], "benchmark": 45},
-    {"title": "QA Engineer", "department": "Quality", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-05", "description": "Ensure product quality", "requirements": "Selenium, JIRA", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Selenium experience?", "Bug tracking tools"], "benchmark": 30},
-    {"title": "Product Manager", "department": "Product", "location": "On-site", "status": "Pending", "postedDate": "2025-03-06", "description": "Lead product strategy", "requirements": "Agile, Roadmap", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Agile experience?", "Roadmap planning"], "benchmark": 55},
-    {"title": "UI/UX Designer", "department": "Design", "location": "Remote", "status": "Pending", "postedDate": "2025-03-07", "description": "Design user interfaces", "requirements": "Figma, Adobe XD", "jobType": "Contract", "experienceLevel": "Mid", "questions": ["Figma skills?", "UX project"], "benchmark": 40},
-    {"title": "Mobile Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-08", "description": "Build mobile apps", "requirements": "Swift, Kotlin", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Swift experience?", "Mobile app example"], "benchmark": 35},
-    {"title": "Security Analyst", "department": "Security", "location": "On-site", "status": "Pending", "postedDate": "2025-03-09", "description": "Protect systems", "requirements": "Penetration testing", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Pen testing skills?", "Security incident"], "benchmark": 50},
-    {"title": "Cloud Architect", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-10", "description": "Design cloud solutions", "requirements": "AWS, Azure", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["AWS expertise?", "Cloud design"], "benchmark": 60},
-    {"title": "Full Stack Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-11", "description": "End-to-end development", "requirements": "MERN stack", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["MERN experience?", "Full stack project"], "benchmark": 45},
-    {"title": "Machine Learning Engineer", "department": "Data", "location": "Remote", "status": "Pending", "postedDate": "2025-03-12", "description": "Develop ML models", "requirements": "TensorFlow, PyTorch", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["TensorFlow skills?", "ML model example"], "benchmark": 55},
-    {"title": "Systems Administrator", "department": "IT", "location": "On-site", "status": "Pending", "postedDate": "2025-03-13", "description": "Manage servers", "requirements": "Linux, Windows", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Linux experience?", "Server management"], "benchmark": 40},
-    {"title": "Technical Writer", "department": "Documentation", "location": "Remote", "status": "Pending", "postedDate": "2025-03-14", "description": "Write technical docs", "requirements": "Markdown, API docs", "jobType": "Part-time", "experienceLevel": "Junior", "questions": ["Markdown skills?", "Doc example"], "benchmark": 30},
-    {"title": "Business Analyst", "department": "Business", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-15", "description": "Gather requirements", "requirements": "BPMN, UML", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["BPMN experience?", "Requirements gathering"], "benchmark": 40},
-    {"title": "Database Administrator", "department": "IT", "location": "On-site", "status": "Pending", "postedDate": "2025-03-16", "description": "Manage databases", "requirements": "SQL, NoSQL", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["SQL skills?", "DB management"], "benchmark": 50},
-    {"title": "Network Engineer", "department": "IT", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-17", "description": "Maintain networks", "requirements": "Cisco, TCP/IP", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Cisco experience?", "Network troubleshooting"], "benchmark": 45},
-    {"title": "Game Developer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-18", "description": "Build games", "requirements": "Unity, Unreal", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Unity skills?", "Game project"], "benchmark": 35},
-    {"title": "AI Engineer", "department": "Data", "location": "On-site", "status": "Pending", "postedDate": "2025-03-19", "description": "Develop AI solutions", "requirements": "NLP, Deep Learning", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["NLP experience?", "AI project"], "benchmark": 60},
-    {"title": "Support Engineer", "department": "Support", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-20", "description": "Assist customers", "requirements": "Ticketing systems", "jobType": "Full-time", "experienceLevel": "Junior", "questions": ["Ticketing experience?", "Support example"], "benchmark": 30},
-    {"title": "Blockchain Developer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-21", "description": "Build blockchain apps", "requirements": "Solidity, Ethereum", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Solidity skills?", "Blockchain project"], "benchmark": 45},
-    {"title": "Embedded Systems Engineer", "department": "Engineering", "location": "On-site", "status": "Pending", "postedDate": "2025-03-22", "description": "Develop firmware", "requirements": "C, RTOS", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["C experience?", "Firmware example"], "benchmark": 50},
-    {"title": "AR/VR Developer", "department": "Engineering", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-23", "description": "Create immersive experiences", "requirements": "Unity, VR SDKs", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Unity VR skills?", "AR/VR project"], "benchmark": 40},
-    {"title": "Site Reliability Engineer", "department": "Engineering", "location": "Remote", "status": "Pending", "postedDate": "2025-03-24", "description": "Ensure uptime", "requirements": "Monitoring, Incident response", "jobType": "Full-time", "experienceLevel": "Senior", "questions": ["Monitoring experience?", "Incident handling"], "benchmark": 55},
-    {"title": "Scrum Master", "department": "Product", "location": "Hybrid", "status": "Pending", "postedDate": "2025-03-25", "description": "Facilitate Agile", "requirements": "Scrum, Kanban", "jobType": "Full-time", "experienceLevel": "Mid", "questions": ["Scrum experience?", "Agile facilitation"], "benchmark": 45}
+    {
+        "title": "Backend Engineer",
+        "department": "Engineering",
+        "location": "Remote",
+        "status": "Pending",
+        "postedDate": "2025-03-01",
+        "description": "Design and maintain scalable APIs for a high-traffic application.",
+        "requirements": "Node.js, PostgreSQL, RESTful API design",
+        "jobType": "Full-time",
+        "experienceLevel": "Mid",
+        "questions": [
+            "How do you ensure API scalability under heavy load?",
+            "What strategies do you use for database optimization in PostgreSQL?",
+            "Can you explain how you’ve implemented authentication in a past project?",
+            "Describe a challenging bug you encountered in a backend system and how you resolved it.",
+            "How do you handle versioning in RESTful APIs?",
+            "What’s your experience with microservices architecture?",
+            "How do you ensure data consistency across distributed systems?"
+        ],
+        "benchmark": 40
+    },
+    {
+        "title": "Frontend Developer",
+        "department": "Engineering",
+        "location": "Hybrid",
+        "status": "Pending",
+        "postedDate": "2025-03-02",
+        "description": "Develop responsive and interactive user interfaces for web applications.",
+        "requirements": "React, TypeScript, CSS",
+        "jobType": "Full-time",
+        "experienceLevel": "Junior",
+        "questions": [
+            "How do you optimize React components for performance?",
+            "What’s the difference between controlled and uncontrolled components in React?",
+            "Can you explain how you’ve used TypeScript to improve code quality?",
+            "How do you ensure cross-browser compatibility in your projects?",
+            "Describe a time you had to debug a complex UI issue.",
+            "What’s your approach to managing state in a React application?",
+            "How do you handle responsive design in CSS?"
+        ],
+        "benchmark": 35
+    },
+    {
+        "title": "Data Scientist",
+        "department": "Data",
+        "location": "On-site",
+        "status": "Pending",
+        "postedDate": "2025-03-03",
+        "description": "Analyze large datasets to derive actionable business insights.",
+        "requirements": "Python, Machine Learning, Statistics",
+        "jobType": "Full-time",
+        "experienceLevel": "Senior",
+        "questions": [
+            "How do you select the right machine learning model for a given problem?",
+            "Describe a time you used Python to clean and preprocess messy data.",
+            "What’s your approach to feature engineering?",
+            "Can you explain a project where you improved model accuracy?",
+            "How do you evaluate the performance of a regression model?",
+            "What’s your experience with deploying ML models into production?",
+            "How do you handle imbalanced datasets?",
+            "What statistical methods do you use to validate your findings?"
+        ],
+        "benchmark": 50
+    },
+    {
+        "title": "DevOps Engineer",
+        "department": "Engineering",
+        "location": "Remote",
+        "status": "Pending",
+        "postedDate": "2025-03-04",
+        "description": "Manage CI/CD pipelines and cloud infrastructure.",
+        "requirements": "AWS, Docker, Jenkins",
+        "jobType": "Full-time",
+        "experienceLevel": "Mid",
+        "questions": [
+            "How do you set up a CI/CD pipeline using Jenkins?",
+            "What’s your experience with container orchestration using Docker?",
+            "Can you describe a time you resolved a production outage?",
+            "How do you monitor AWS infrastructure for performance issues?",
+            "What’s your approach to securing cloud resources?",
+            "How do you automate infrastructure provisioning?",
+            "Describe a challenging deployment you managed."
+        ],
+        "benchmark": 45
+    },
+    {
+        "title": "QA Engineer",
+        "department": "Quality",
+        "location": "Hybrid",
+        "status": "Pending",
+        "postedDate": "2025-03-05",
+        "description": "Ensure product quality through manual and automated testing.",
+        "requirements": "Selenium, JIRA, Test Automation",
+        "jobType": "Full-time",
+        "experienceLevel": "Junior",
+        "questions": [
+            "How do you write effective test cases for a web application?",
+            "What’s your experience with Selenium for automated testing?",
+            "Can you explain how you prioritize bugs in JIRA?",
+            "Describe a time you caught a critical defect before release.",
+            "How do you approach testing a new feature?",
+            "What’s the difference between black-box and white-box testing?",
+            "How do you ensure test coverage in an agile environment?"
+        ],
+        "benchmark": 30
+    },
+    {
+        "title": "Product Manager",
+        "department": "Product",
+        "location": "On-site",
+        "status": "Pending",
+        "postedDate": "2025-03-06",
+        "description": "Define and execute product strategy for a SaaS platform.",
+        "requirements": "Agile, Roadmap Planning, Stakeholder Management",
+        "jobType": "Full-time",
+        "experienceLevel": "Senior",
+        "questions": [
+            "How do you prioritize features for a product roadmap?",
+            "Describe a time you managed conflicting stakeholder requirements.",
+            "What’s your approach to running an Agile sprint?",
+            "Can you explain a product launch you led from start to finish?",
+            "How do you measure the success of a product feature?",
+            "What tools do you use for product backlog management?",
+            "How do you gather and incorporate user feedback?",
+            "Describe a time you pivoted a product strategy based on data."
+        ],
+        "benchmark": 55
+    },
+    {
+        "title": "UI/UX Designer",
+        "department": "Design",
+        "location": "Remote",
+        "status": "Pending",
+        "postedDate": "2025-03-07",
+        "description": "Design intuitive and visually appealing user interfaces.",
+        "requirements": "Figma, Adobe XD, User Research",
+        "jobType": "Contract",
+        "experienceLevel": "Mid",
+        "questions": [
+            "How do you conduct user research for a new design?",
+            "What’s your process for creating wireframes in Figma?",
+            "Can you describe a time you improved usability based on feedback?",
+            "How do you ensure accessibility in your designs?",
+            "What’s your experience with prototyping in Adobe XD?",
+            "How do you collaborate with developers to implement designs?",
+            "Describe a challenging design project and your solution."
+        ],
+        "benchmark": 40
+    },
+    {
+        "title": "Mobile Developer",
+        "department": "Engineering",
+        "location": "Hybrid",
+        "status": "Pending",
+        "postedDate": "2025-03-08",
+        "description": "Develop and maintain iOS and Android applications.",
+        "requirements": "Swift, Kotlin, Mobile UI",
+        "jobType": "Full-time",
+        "experienceLevel": "Junior",
+        "questions": [
+            "How do you optimize a mobile app for performance?",
+            "What’s your experience with Swift for iOS development?",
+            "Can you explain a time you debugged a mobile app crash?",
+            "How do you handle different screen sizes in Android with Kotlin?",
+            "What’s your approach to integrating APIs in a mobile app?",
+            "Describe a mobile app you’ve built from scratch."
+        ],
+        "benchmark": 35
+    },
+    {
+        "title": "Security Analyst",
+        "department": "Security",
+        "location": "On-site",
+        "status": "Pending",
+        "postedDate": "2025-03-09",
+        "description": "Identify and mitigate security risks in IT systems.",
+        "requirements": "Penetration Testing, Cybersecurity Frameworks",
+        "jobType": "Full-time",
+        "experienceLevel": "Senior",
+        "questions": [
+            "How do you conduct a penetration test on a web application?",
+            "Describe a security vulnerability you discovered and fixed.",
+            "What’s your experience with OWASP Top 10 vulnerabilities?",
+            "How do you stay updated on the latest cybersecurity threats?",
+            "Can you explain how you’d respond to a data breach?",
+            "What tools do you use for security audits?",
+            "How do you ensure compliance with GDPR or similar regulations?",
+            "Describe a time you trained a team on security best practices."
+        ],
+        "benchmark": 50
+    },
+    {
+        "title": "Cloud Architect",
+        "department": "Engineering",
+        "location": "Remote",
+        "status": "Pending",
+        "postedDate": "2025-03-10",
+        "description": "Design and oversee cloud infrastructure solutions.",
+        "requirements": "AWS, Azure, Cloud Security",
+        "jobType": "Full-time",
+        "experienceLevel": "Senior",
+        "questions": [
+            "How do you design a highly available cloud architecture?",
+            "What’s your experience with AWS multi-region deployments?",
+            "Can you explain a cost-optimization strategy you implemented in Azure?",
+            "How do you secure sensitive data in a cloud environment?",
+            "Describe a time you migrated an on-premise system to the cloud.",
+            "What’s your approach to disaster recovery in the cloud?",
+            "How do you evaluate cloud providers for a specific use case?",
+            "What tools do you use for cloud infrastructure monitoring?"
+        ],
+        "benchmark": 60
+    },
+    {
+        "title": "Full Stack Developer",
+        "department": "Engineering",
+        "location": "Hybrid",
+        "status": "Pending",
+        "postedDate": "2025-03-11",
+        "description": "Develop end-to-end solutions for web applications.",
+        "requirements": "MERN Stack (MongoDB, Express.js, React, Node.js)",
+        "jobType": "Full-time",
+        "experienceLevel": "Mid",
+        "questions": [
+            "How do you structure a MERN stack application?",
+            "What’s your experience with MongoDB indexing for performance?",
+            "Can you explain a time you integrated a third-party API?",
+            "How do you ensure security in a full-stack application?",
+            "Describe a full-stack project you’ve completed.",
+            "What’s your approach to testing both frontend and backend?",
+            "How do you handle state management in React?"
+        ],
+        "benchmark": 45
+    },
+    {
+        "title": "Machine Learning Engineer",
+        "department": "Data",
+        "location": "Remote",
+        "status": "Pending",
+        "postedDate": "2025-03-12",
+        "description": "Build and deploy machine learning models for predictive analytics.",
+        "requirements": "TensorFlow, PyTorch, Data Pipelines",
+        "jobType": "Full-time",
+        "experienceLevel": "Senior",
+        "questions": [
+            "How do you choose between TensorFlow and PyTorch for a project?",
+            "Describe a time you optimized a neural network’s performance.",
+            "What’s your experience with building data pipelines?",
+            "How do you deploy a machine learning model to production?",
+            "Can you explain a time you dealt with overfitting?",
+            "What’s your approach to hyperparameter tuning?",
+            "How do you validate the accuracy of a predictive model?",
+            "Describe a challenging ML project and its outcome."
+        ],
+        "benchmark": 55
+    },
+    {
+        "title": "Systems Administrator",
+        "department": "IT",
+        "location": "On-site",
+        "status": "Pending",
+        "postedDate": "2025-03-13",
+        "description": "Manage and maintain server infrastructure.",
+        "requirements": "Linux, Windows Server, Networking",
+        "jobType": "Full-time",
+        "experienceLevel": "Mid",
+        "questions": [
+            "How do you troubleshoot a server outage in Linux?",
+            "What’s your experience with Windows Server administration?",
+            "Can you describe a time you improved server performance?",
+            "How do you configure a secure network for internal systems?",
+            "What’s your approach to patch management?",
+            "How do you back up critical server data?",
+            "Describe a time you resolved a network connectivity issue."
+        ],
+        "benchmark": 40
+    },
+    {
+        "title": "Technical Writer",
+        "department": "Documentation",
+        "location": "Remote",
+        "status": "Pending",
+        "postedDate": "2025-03-14",
+        "description": "Create clear and concise technical documentation.",
+        "requirements": "Markdown, API Documentation, Technical Communication",
+        "jobType": "Part-time",
+        "experienceLevel": "Junior",
+        "questions": [
+            "How do you write user-friendly API documentation?",
+            "What’s your experience with Markdown for technical docs?",
+            "Can you describe a time you simplified complex technical content?",
+            "How do you collaborate with developers to gather information?",
+            "What tools do you use for documentation versioning?",
+            "Describe a documentation project you’re proud of."
+        ],
+        "benchmark": 30
+    },
+    {
+        "title": "Business Analyst",
+        "department": "Business",
+        "location": "Hybrid",
+        "status": "Pending",
+        "postedDate": "2025-03-15",
+        "description": "Analyze business needs and document requirements.",
+        "requirements": "BPMN, UML, Stakeholder Analysis",
+        "jobType": "Full-time",
+        "experienceLevel": "Mid",
+        "questions": [
+            "How do you create a BPMN diagram for a business process?",
+            "What’s your experience with UML for system modeling?",
+            "Can you explain a time you bridged a gap between stakeholders?",
+            "How do you prioritize requirements in a project?",
+            "Describe a challenging requirement-gathering session.",
+            "What’s your approach to validating business requirements?",
+            "How do you handle scope creep in a project?"
+        ],
+        "benchmark": 40
+    }
 ]
 
 applicants = [
